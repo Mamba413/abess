@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>plot from a "abess" object — plot.abess • abess</title>
+<title>Creat plot from a fitted "abess" object — plot.abess • abess</title>
 
 
 <!-- jquery -->
@@ -39,7 +39,7 @@
 
 
 
-<meta property="og:title" content="plot from a "abess" object — plot.abess" />
+<meta property="og:title" content="Creat plot from a fitted "abess" object — plot.abess" />
 <meta property="og:description" content="Produces a coefficient/deviance/tuning-value plot 
 for a fitted &quot;abess&quot; object." />
 
@@ -96,7 +96,28 @@ for a fitted &quot;abess&quot; object." />
   </a>
   <ul class="dropdown-menu" role="menu">
     <li>
-      <a href="../articles/abess-guide.html">An Introduction to `abess`</a>
+      <a href="../articles/v01-abess-guide.html">Quick start for `abess`: Linear regression</a>
+    </li>
+    <li>
+      <a href="../articles/v03-classification.html">Classification: Logistic Regression and Multinomial Extension</a>
+    </li>
+    <li>
+      <a href="../articles/v04-poissonregression.html">Poisson Regression</a>
+    </li>
+    <li>
+      <a href="../articles/v05-coxreg.html">Best Subset Selection for Censored Response</a>
+    </li>
+    <li>
+      <a href="../articles/v06-MultiTaskLearning.html">Multi-Response Linear Regression</a>
+    </li>
+    <li>
+      <a href="../articles/v07-advancedFeatures.html">Advanced Features</a>
+    </li>
+    <li>
+      <a href="../articles/v08-sPCA.html">Principal component analysis</a>
+    </li>
+    <li>
+      <a href="../articles/v09-fasterSetting.html">Tips for faster computation</a>
     </li>
   </ul>
 </li>
@@ -106,7 +127,7 @@ for a fitted &quot;abess&quot; object." />
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
-  <a href="https://github.com/Mamba413/abess/">
+  <a href="https://github.com/abess-team/abess/">
     <span class="fab fa-github fa-lg"></span>
      
   </a>
@@ -124,8 +145,8 @@ for a fitted &quot;abess&quot; object." />
 <div class="row">
   <div class="col-md-9 contents">
     <div class="page-header">
-    <h1>plot from a "abess" object</h1>
-    <small class="dont-index">Source: <a href='https://github.com/Mamba413/abess/blob/master/R/plot.abess.R'><code>R/plot.abess.R</code></a></small>
+    <h1>Creat plot from a fitted "<code>abess</code>" object</h1>
+    <small class="dont-index">Source: <a href='https://github.com/abess-team/abess/blob/master/R/plot.abess.R'><code>R/plot.abess.R</code></a></small>
     <div class="hidden name"><code>plot.abess.Rd</code></div>
     </div>
 
@@ -170,11 +191,22 @@ label the curves with variable sequence numbers.</p></td>
     </tr>
     </table>
 
+    <h2 class="hasAnchor" id="value"><a class="anchor" href="#value"></a>Value</h2>
+
+    <p>No return value, called for side effects.</p>
     <h2 class="hasAnchor" id="note"><a class="anchor" href="#note"></a>Note</h2>
 
     <p>If <code>family = "mgaussian"</code> or <code>family = "multinomial"</code>, 
 a coefficient plot is produced for 
 each dimension of multivariate response.</p>
+    <h2 class="hasAnchor" id="see-also"><a class="anchor" href="#see-also"></a>See also</h2>
+
+    <div class='dont-index'><p><code><a href='print.abess.html'>print.abess</a></code>, 
+<code><a href='predict.abess.html'>predict.abess</a></code>, 
+<code><a href='coef.abess.html'>coef.abess</a></code>, 
+<code><a href='extract.html'>extract.abess</a></code>,
+<code>plot.abess</code>,
+<code><a href='deviance.abess.html'>deviance.abess</a></code>.</p></div>
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
     <pre class="examples"><div class='input'><span class='va'>dataset</span> <span class='op'>&lt;-</span> <span class='fu'><a href='generate.data.html'>generate.data</a></span><span class='op'>(</span><span class='fl'>100</span>, <span class='fl'>20</span>, <span class='fl'>3</span><span class='op'>)</span>
@@ -195,7 +227,7 @@ each dimension of multivariate response.</p>
 
       <footer>
       <div class="copyright">
-  <p>Developed by Jin Zhu, Kangkang Jiang, Junxian Zhu, Canhong Wen, Heping Zhang, Xueqin Wang.</p>
+  <p>Developed by Jin Zhu, Kangkang Jiang, Yanhang Zhang, Liyuan Hu, Junhao Huang, Junxian Zhu, Canhong Wen, Heping Zhang, Xueqin Wang.</p>
 </div>
 
 <div class="pkgdown">

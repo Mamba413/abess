@@ -2,6 +2,13 @@ pandoc: 2.7.3
 pkgdown: 1.6.1
 pkgdown_sha: ~
 articles:
-  abess-guide: abess-guide.html
-last_built: 2021-03-29T03:35Z
+  v01-abess-guide: v01-abess-guide.html
+  v03-classification: v03-classification.html
+  v04-poissonregression: v04-poissonregression.html
+  v05-coxreg: v05-coxreg.html
+  v06-MultiTaskLearning: v06-MultiTaskLearning.html
+  v07-advancedFeatures: v07-advancedFeatures.html
+  v08-sPCA: v08-sPCA.html
+  v09-fasterSetting: v09-fasterSetting.html
+last_built: 2021-07-16T13:44Z
 
