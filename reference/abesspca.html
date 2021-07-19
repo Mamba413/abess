@@ -304,11 +304,11 @@ can be efficiently solved.</p>
 </div><div class='output co'>#&gt; Call:
 #&gt; abesspca(x = USArrests)
 #&gt; 
-#&gt;   support.size       ev       pev
-#&gt; 1            1 6945.166 0.9905936
-#&gt; 2            2 6984.264 0.9961702
-#&gt; 3            3 6998.933 0.9982624
-#&gt; 4            4 7011.115 1.0000000</div><div class='input'>
+#&gt;   support.size       ev        pev
+#&gt; 1            1 6945.166 0.02021620
+#&gt; 2            2 6984.264 0.02033000
+#&gt; 3            3 6998.933 0.02037270
+#&gt; 4            4 7011.115 0.02040816</div><div class='input'>
 <span class='co'>## covariance matrix input:</span>
 <span class='va'>pca_fit</span> <span class='op'>&lt;-</span> <span class='fu'>abesspca</span><span class='op'>(</span><span class='fu'>stats</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/r/stats/cor.html'>cov</a></span><span class='op'>(</span><span class='va'>USArrests</span><span class='op'>)</span>, type <span class='op'>=</span> <span class='st'>"gram"</span><span class='op'>)</span>
 <span class='va'>pca_fit</span>
@@ -329,10 +329,10 @@ can be efficiently solved.</p>
 #&gt; abesspca(x = rob_cov, type = "gram")
 #&gt; 
 #&gt;   support.size       ev       pev
-#&gt; 1            1 6230.645 0.9906854
-#&gt; 2            2 6257.909 0.9950206
-#&gt; 3            3 6274.911 0.9977239
-#&gt; 4            4 6289.226 1.0000000</div><div class='input'>
+#&gt; 1            1 6309.053 0.9827109
+#&gt; 2            2 6362.517 0.9910386
+#&gt; 3            3 6410.151 0.9984582
+#&gt; 4            4 6420.050 1.0000000</div><div class='input'>
 <span class='co'>## K-component principal component analysis</span>
 <span class='va'>pca_fit</span> <span class='op'>&lt;-</span> <span class='fu'>abesspca</span><span class='op'>(</span><span class='va'>USArrests</span>, sparse.type <span class='op'>=</span> <span class='st'>"kpc"</span>, 
                     support.size <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='fl'>1</span>, <span class='fl'>2</span><span class='op'>)</span><span class='op'>)</span>
