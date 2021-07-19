@@ -178,8 +178,8 @@
 ##   .. ..@ x       : num [1:4950] 1 0.96 -0.28 -0.899 0.31 ...
 ##   .. ..@ factors : list()
 ##  $ ev          : num [1:99] 0.198 0.211 0.228 0.247 0.274 ...
-##  $ pev         : num [1:99] 9.32e-05 9.93e-05 1.07e-04 1.17e-04 1.29e-04 ...
-##  $ var.all     : num 2124
+##  $ pev         : num [1:99] 0.186 0.198 0.214 0.232 0.257 ...
+##  $ var.all     : num 1.07
 ##  $ call        : language abesspca(x = X)
 ##  - attr(*, "class")= chr "abesspca"</code></pre>
 <p>or Gram-type matrix (like covariance matrix, correlation matrix and robust covariance matrix):</p>
@@ -364,8 +364,8 @@ This result shows that using less than half of all 99 variables can be close to 
 ##   .. ..@ x       : num [1:912] -0.503 -0.512 -0.5279 -0.4516 0.0472 ...
 ##   .. ..@ factors : list()
 ##  $ ev          : num [1:17] 0.158 0.388 0.471 0.562 0.641 ...
-##  $ pev         : num [1:17] 7.45e-05 1.83e-04 2.22e-04 2.64e-04 3.02e-04 ...
-##  $ var.all     : num 2124
+##  $ pev         : num [1:17] 0.148 0.364 0.442 0.527 0.602 ...
+##  $ var.all     : num 1.07
 ##  $ call        : language abesspca(x = X, group.index = g_info)
 ##  - attr(*, "class")= chr "abesspca"</code></pre>
 </div>
@@ -400,8 +400,8 @@ This result shows that using less than half of all 99 variables can be close to 
 ##   .. ..@ x       : num [1:90] 0.1318 -0.1202 -0.0747 -0.166 -0.1945 ...
 ##   .. ..@ factors : list()
 ##  $ ev          : num [1:2] 1.04 1.75
-##  $ pev         : num [1:2] 0.000131 0.000221
-##  $ var.all     : num 7909
+##  $ pev         : num [1:2] 0.262 0.441
+##  $ var.all     : num 3.97
 ##  $ call        : language abesspca(x = X, sparse.type = "kpc", support.size = c(50, 40))
 ##  - attr(*, "class")= chr "abesspca"</code></pre>
 <p>The result <code>best_kpca[["pev"]]</code> shows that two principal components raised from two loading matrix could explain 40% variance of all variables (i.e., <span class="math inline">\(\text{trace}(\Sigma)\)</span>).</p>
