@@ -132,6 +132,8 @@ public:
 
   int pca_n = -1;
 
+  Eigen::VectorXd lambda_seq;
+
   T1 XTy_U;
   T1 XTone_U;
   Eigen::Matrix<Eigen::MatrixXd, -1, -1> PhiG_U;

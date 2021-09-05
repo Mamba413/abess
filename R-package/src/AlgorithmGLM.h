@@ -265,9 +265,27 @@ template <class T4>
 class abessLm : public Algorithm<Eigen::VectorXd, Eigen::VectorXd, double, T4>
 {
 public:
+  // Eigen::VectorXd lambda_seq;
+
   abessLm(int algorithm_type, int model_type, int max_iter = 30, int primary_model_fit_max_iter = 10, double primary_model_fit_epsilon = 1e-8, bool warm_start = true, int exchange_num = 5, bool approximate_Newton = false, Eigen::VectorXi always_select = Eigen::VectorXi::Zero(0), bool covariance_update = true, int splicing_type = 0, int sub_search = 0) : Algorithm<Eigen::VectorXd, Eigen::VectorXd, double, T4>::Algorithm(algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon, warm_start, exchange_num, approximate_Newton, always_select, covariance_update, splicing_type, sub_search){};
 
   ~abessLm(){};
+
+  // void update_lambda_seq(Eigen::VectorXd lambda_seq) 
+  // {
+  //   this->lambda_seq = lambda_seq;
+  // }
+
+  double compute_first_derivation(double lambda, Eigen::VectorXd eigen_value, Eigen::VectorXd beta, double noise)
+  {
+    double first_derivation = 0.0;
+    for (unsigned int i = 0; i < eigen_value.size(); i++)
+    {
+      first_derivation += eigen_value(i) * (lambda * beta(i) * beta(i) - noise) / pow(eigen_value(i) + lambda, 3);
+    }
+    
+    return first_derivation;
+  }
 
   bool primary_model_fit(T4 &x, Eigen::VectorXd &y, Eigen::VectorXd &weights, Eigen::VectorXd &beta, double &coef0, double loss0, Eigen::VectorXi &A, Eigen::VectorXi &g_index, Eigen::VectorXi &g_size)
   {
@@ -278,8 +296,41 @@ public:
     T4 X(n, p + 1);
     X.rightCols(p) = x;
     add_constant_column(X);
-    // beta = (X.adjoint() * X + this->lambda_level * Eigen::MatrixXd::Identity(X.cols(), X.cols())).colPivHouseholderQr().solve(X.adjoint() * y);
-    Eigen::MatrixXd XTX = X.adjoint() * X + this->lambda_level * Eigen::MatrixXd::Identity(X.cols(), X.cols());
+
+    // auto select lambda:
+    Eigen::MatrixXd XTX;
+    if (this->lambda_seq.size() > 1) 
+    {
+      unsigned int lambda_num = this->lambda_seq.size();
+      XTX = X.adjoint() * X;
+      Eigen::VectorXd beta0 = XTX.ldlt().solve(X.adjoint() * y);
+      Eigen::VectorXd residual = y - X * beta0;
+      double noise = residual.squaredNorm() / ((double) n);
+      SelfAdjointEigenSolver<MatrixXd> eigensolver(XTX);
+      if (eigensolver.info() != Success) abort();
+      Eigen::VectorXd eigen_value = eigensolver.eigenvalues();
+      
+      // find a lambda that is closest to 0
+      int minimum_index = -1;
+      int minimum_first_derivation = DBL_MAX, temp;
+      for (unsigned int i = 0; i < lambda_num; i++)
+      {
+        temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
+        if (abs(temp) < minimum_first_derivation) 
+        {
+          minimum_index = i;
+          minimum_first_derivation = abs(temp);
+        }
+      }
+
+      XTX = XTX + this->lambda_seq(minimum_index) * Eigen::MatrixXd::Identity(X.cols(), X.cols());
+    } 
+    else 
+    {
+      // beta = (X.adjoint() * X + this->lambda_level * Eigen::MatrixXd::Identity(X.cols(), X.cols())).colPivHouseholderQr().solve(X.adjoint() * y);
+      XTX = X.adjoint() * X + this->lambda_level * Eigen::MatrixXd::Identity(X.cols(), X.cols());
+    }
+
     // if (check_ill_condition(XTX)) return false;
     Eigen::VectorXd beta0 = XTX.ldlt().solve(X.adjoint() * y);
 

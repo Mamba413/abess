@@ -1,3 +1,7 @@
+# abess 0.3.1
+
+* Add auto L2 regularization selection
+
 # abess 0.3.0
 
 * Add docs2search for R's website

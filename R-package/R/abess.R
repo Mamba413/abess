@@ -342,7 +342,7 @@ abess.default <- function(x,
   tau <- NULL
 
   ## check lambda
-  stopifnot(length(lambda) == 1)
+  # stopifnot(length(lambda) == 1)
   stopifnot(!anyNA(lambda))
   stopifnot(all(lambda >= 0))
   lambda.list <- lambda

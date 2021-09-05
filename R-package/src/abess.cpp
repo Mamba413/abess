@@ -110,6 +110,11 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
     if (model_type == 1)
     {
       algorithm_uni_dense = new abessLm<Eigen::MatrixXd>(algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon, is_warm_start, exchange_num, approximate_Newton, always_select, covariance_update, splicing_type, sub_search);
+      if (lambda_seq.size() > 1) 
+      {
+        algorithm_uni_dense->lambda_seq = lambda_seq;
+        lambda_seq = Eigen::VectorXd::Zero(1);  
+      }
     }
     else if (model_type == 2)
     {
