@@ -286,8 +286,8 @@ generate.data <- function(n,
     colnames(y) <- paste0("y", 1:y_dim)
   }
   if (family == "multinomial") {
-    m <- 5 * sqrt(2 * log(p) / n)
-    M <- 100 * m
+    m <- 2.5 * sqrt(2 * log(p) / n)
+    M <- 50 * m
     if (is.null(input_beta)) {
       beta[nonzero, ] <- matrix(stats::runif(support.size * y_dim, m, M),
         ncol = y_dim
@@ -305,7 +305,7 @@ generate.data <- function(n,
     prob_y <- exp(prob_y)
     prob_y <- sweep(prob_y, MARGIN = 1, STATS = rowSums(prob_y), FUN = "/")
     y <- apply(prob_y, 1, function(x) {
-      sample(0:2, size = 1, prob = x)
+      sample(0:(length(x) - 1), size = 1, prob = x)
     })
   }
   set.seed(NULL)

@@ -3,6 +3,10 @@ version: 2
 build:
   image: latest
 
+# Build PDF
+formats: 
+  - pdf
+
 python:
   version: 3.7
   install:
