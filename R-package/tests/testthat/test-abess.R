@@ -480,3 +480,21 @@ test_that("abess (L2 regularization) works", {
   abess_fit2 <- abess(dataset[["x"]], dataset[["y"]])
   expect_true(extract(abess_fit)[["support.size"]] >= extract(abess_fit2)[["support.size"]])
 })
+
+test_that("abess (L2 regularization better in low SNP regime) works", {
+  n <- 100
+  p <- 20
+  support_size <- 4
+  dataset <- generate.data(n, p, support_size, snr = 0.2)
+  test_dataset <- generate.data(10 * n, p, support_size, snr = 0.2)
+  
+  abess_fit <- abess(dataset[["x"]], dataset[["y"]])
+  y_pred <- as.vector(predict(abess_fit, newx = test_dataset[["x"]]))
+  error_l0 <- sqrt(mean((test_dataset[["y"]] - y_pred)^2))
+  
+  abess_fit <- abess(dataset[["x"]], dataset[["y"]], 
+                     lambda = 10^(seq(-4, 1, length.out = 10)))
+  y_pred <- as.vector(predict(abess_fit, newx = test_dataset[["x"]]))
+  error_l0l2 <- sqrt(mean((test_dataset[["y"]] - y_pred)^2))
+  expect_lt(error_l0l2, error_l0)
+})
