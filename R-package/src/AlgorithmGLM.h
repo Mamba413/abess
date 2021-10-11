@@ -309,17 +309,24 @@ public:
       Eigen::VectorXd eigen_value = eigensolver.eigenvalues();
       
       // find a lambda that is closest to 0
+      // std::cout << "first derivation: " << std::endl;
       int minimum_index = -1;
-      int minimum_first_derivation = DBL_MAX, temp;
+      double minimum_first_derivation = DBL_MAX, temp;
       for (unsigned int i = 0; i < lambda_num; i++)
       {
         temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
-        if (abs(temp) < minimum_first_derivation) 
+        temp = std::abs(temp);
+        // std::cout << temp << " ";
+        if (temp < minimum_first_derivation) 
         {
           minimum_index = i;
-          minimum_first_derivation = abs(temp);
+          minimum_first_derivation = temp;
         }
       }
+      if (minimum_index == -1) {
+        minimum_index = 0;
+      }
+      // std::cout << std::endl << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
 
       XTX = XTX + this->lambda_seq(minimum_index) * Eigen::MatrixXd::Identity(X.cols(), X.cols());
     } 
