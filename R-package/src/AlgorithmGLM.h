@@ -285,6 +285,41 @@ public:
     return first_derivation;
   }
 
+  double search_optimal_lambda(Eigen::VectorXd &lambda_seq, Eigen::VectorXd &eigen_value, Eigen::MatrixXd &eigen_vector, VectorXd &beta, double noise)
+  {
+    int minimum_index = -1;
+    double minimum_first_derivation = DBL_MAX, temp;
+    int eigen_value_size = eigen_value.size();
+    Eigen::VectorXd eigen_value_new(eigen_value_size);
+    Eigen::MatrixXd eigen_vector_new(eigen_value_size, eigen_value_size);
+    for (unsigned int i = 0; i < eigen_value_size; i++)
+    {
+      eigen_value_new(i) = eigen_value(eigen_value_size - i - 1);
+      eigen_vector_new.col(i) = eigen_vector.col(eigen_value_size - i - 1);
+    }
+    beta = eigen_vector_new * beta;
+
+    for (unsigned int i = 0; i < lambda_seq.size(); i++)
+    {
+      // std::cout << "first derivation: " << std::endl;
+      temp = compute_first_derivation(lambda_seq(i), eigen_value_new, beta, noise);
+      temp = std::abs(temp);
+      if (temp < minimum_first_derivation) 
+      {
+        minimum_index = i;
+        minimum_first_derivation = temp;
+      }
+    }
+    if (minimum_index == -1) {
+      minimum_index = 0;
+    }
+    // std::cout << std::endl << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
+    // double hkb_lambda = ((double) (p + 1)) * noise / beta0.squaredNorm();
+    // std::cout << "HKB lambda: " << hkb_lambda << std::endl;
+    double optimal_lambda_level = lambda_seq(minimum_index);
+    return optimal_lambda_level;
+  }
+
   bool primary_model_fit(T4 &x, Eigen::VectorXd &y, Eigen::VectorXd &weights, Eigen::VectorXd &beta, double &coef0, double loss0, Eigen::VectorXi &A, Eigen::VectorXi &g_index, Eigen::VectorXi &g_size)
   {
     int n = x.rows();
@@ -307,28 +342,32 @@ public:
       SelfAdjointEigenSolver<MatrixXd> eigensolver(XTX);
       if (eigensolver.info() != Success) abort();
       Eigen::VectorXd eigen_value = eigensolver.eigenvalues();
-      
+      Eigen::MatrixXd eigen_vector = eigensolver.eigenvectors();
       // find a lambda that is closest to 0
       // std::cout << "first derivation: " << std::endl;
-      int minimum_index = -1;
-      double minimum_first_derivation = DBL_MAX, temp;
-      for (unsigned int i = 0; i < lambda_num; i++)
-      {
-        temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
-        temp = std::abs(temp);
-        // std::cout << temp << " ";
-        if (temp < minimum_first_derivation) 
-        {
-          minimum_index = i;
-          minimum_first_derivation = temp;
-        }
-      }
-      if (minimum_index == -1) {
-        minimum_index = 0;
-      }
-      // std::cout << std::endl << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
+      // int minimum_index = -1;
+      // double minimum_first_derivation = DBL_MAX, temp;
+      // for (unsigned int i = 0; i < lambda_num; i++)
+      // {
+      //   temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
+      //   temp = std::abs(temp);
+      //   // std::cout << temp << " ";
+      //   if (temp < minimum_first_derivation) 
+      //   {
+      //     minimum_index = i;
+      //     minimum_first_derivation = temp;
+      //   }
+      // }
+      // if (minimum_index == -1) {
+      //   minimum_index = 0;
+      // }
+      // std::cout << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
+      // XTX = XTX + this->lambda_seq(minimum_index) * Eigen::MatrixXd::Identity(X.cols(), X.cols());
 
-      XTX = XTX + this->lambda_seq(minimum_index) * Eigen::MatrixXd::Identity(X.cols(), X.cols());
+      double optima_lambda = search_optimal_lambda(this->lambda_seq, eigen_value, eigen_vector, beta0, noise);
+      // std::cout << "optimal lambda (new): " << optima_lambda << std::endl;
+      XTX = XTX + optima_lambda * Eigen::MatrixXd::Identity(X.cols(), X.cols());
+      // this->lambda_level = optima_lambda;
     } 
     else 
     {
@@ -486,13 +525,34 @@ public:
 
   double effective_number_of_parameter(T4 &X, T4 &XA, Eigen::VectorXd &y, Eigen::VectorXd &weights, Eigen::VectorXd &beta, Eigen::VectorXd &beta_A, double &coef0)
   {
-    if (this->lambda_level == 0.)
+    if (this->lambda_seq.size() > 1) 
     {
-      return XA.cols();
-    }
-    else
-    {
-      return double(XA.cols()) / (this->lambda_level + 1);
+      int p = XA.cols();
+      int n = XA.rows();
+      Eigen::MatrixXd X(n, p + 1);
+      X.rightCols(p) = XA;
+      add_constant_column(X);
+      Eigen::MatrixXd XTX = X.adjoint() * X;
+      Eigen::VectorXd beta0 = XTX.ldlt().solve(X.adjoint() * y);
+      Eigen::VectorXd residual = y - X * beta0;
+      double noise = residual.squaredNorm() / ((double) n);
+      SelfAdjointEigenSolver<MatrixXd> eigensolver(XTX);
+      if (eigensolver.info() != Success) abort();
+      Eigen::VectorXd eigen_value = eigensolver.eigenvalues();
+      Eigen::MatrixXd eigen_vector = eigensolver.eigenvectors();
+      double optima_lambda = search_optimal_lambda(this->lambda_seq, eigen_value, eigen_vector, beta0, noise);
+      XTX = XTX + optima_lambda * Eigen::MatrixXd::Identity(p + 1, p + 1);
+      Eigen::MatrixXd hat_matrix = X * XTX.ldlt().solve(Eigen::MatrixXd::Identity(p + 1, p + 1)) * X.adjoint();
+      return hat_matrix.trace();
+    } else {
+      if (this->lambda_level == 0.)
+      {
+        return XA.cols();
+      }
+      else
+      {
+        return double(XA.cols()) / (this->lambda_level + 1);
+      }
     }
   }
 };
