@@ -484,46 +484,48 @@ test_that("abess (L2 regularization) works", {
 test_that("abess (L2 regularization better in low SNP regime) works", {
   n <- 400
   p <- 800
-  support_size <- 5
+  support_size <- 20
   Tbeta <- rep(0, p)
   Tbeta[seq.int(1, p, length.out = support_size)] <- 1
-  dataset <- generate.data(n, p, snr = 0.1, 
-                           beta = Tbeta, cortype = 3, rho = 0.6, seed = 3)
-  test_dataset <- generate.data(10 * n, p, 
-                                snr = 0.1, beta = Tbeta, 
-                                cortype = 3, rho = 0.6, seed = 2)
+  dataset <- generate.data(n, p, snr = 0.5, 
+                           beta = Tbeta, cortype = 3, rho = 0.6, seed = 1)
+  test_dataset <- generate.data(2 * n, p, 
+                                snr = 0.5, beta = Tbeta, 
+                                cortype = 3, rho = 0.6, seed = 3)
   
-  # y_true <- as.vector(dataset[["x"]] %*% as.matrix(Tbeta))
-  y_true <- as.vector(test_dataset[["x"]] %*% as.matrix(Tbeta))
+  y_true <- as.vector(dataset[["x"]] %*% as.matrix(Tbeta))
+  # y_true <- as.vector(test_dataset[["x"]] %*% as.matrix(Tbeta))
   # y_true <- as.vector(test_dataset[["y"]])
   
-  abess_fit <- abess(dataset[["x"]], dataset[["y"]], nfolds = 10, 
+  abess_fit <- abess(dataset[["x"]], dataset[["y"]], 
                      num.threads = 1)
   plot(abess_fit, type = "tune")
-  plot(abess_fit, type = "dev")
   # y_pred <- as.vector(predict(abess_fit, newx = dataset[["x"]]))
   y_pred <- as.vector(predict(abess_fit, newx = test_dataset[["x"]]))
   error_l0 <- sum(y_true - y_pred)^2 / sum(y_true)^2
   
   lambda_max <- sqrt(sum(cov(dataset[["x"]], dataset[["y"]])^2))
+  # lambda_max <- sqrt(sum((t(dataset[["x"]]) %*% dataset[["y"]])))
   lambda_max_order <- round(log10(lambda_max))
-  # lambda_max_order <- -2
+  # lambda_max_order <- 2
   abess_fit_l2 <- abess(
     dataset[["x"]],
     dataset[["y"]],
     num.threads = 1,
-    important.search = p, 
-    support.size = 0:10,
-    ic.scale = 1.0, 
+    support.size = 0:50,
+    splicing.type = 1, c.max = 20, 
     lambda = 10 ^ (seq(
       lambda_max_order - 5, lambda_max_order,
-      length.out = 10
+      length.out = 100
     ))
   )
   plot(abess_fit_l2, type = "dev")
   plot(abess_fit_l2, type = "tune")
   # y_pred <- as.vector(predict(abess_fit_l2, newx = dataset[["x"]]))
+  # y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]]))
   y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]]))
+  y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]], support.size = 15))
+  y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]], support.size = 19))
   error_l0l2 <- sum(y_true - y_pred)^2 / sum(y_true)^2
   expect_lt(error_l0l2, error_l0)
   

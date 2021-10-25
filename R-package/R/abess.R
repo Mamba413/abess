@@ -921,7 +921,7 @@ abess.default <- function(x,
     result[["support.size"]] <- s_list
   }
 
-  result[["edf"]] <- result[["effective_number_all"]][, 1]
+  result[["edf"]] <- result[["effective_number_all"]][, 1] - 1
   result[["effective_number_all"]] <- NULL
   names(result)[which(names(result) == "train_loss_all")] <- "dev"
   result[["dev"]] <- result[["dev"]][, 1]
