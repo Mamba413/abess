@@ -482,19 +482,79 @@ test_that("abess (L2 regularization) works", {
 })
 
 test_that("abess (L2 regularization better in low SNP regime) works", {
-  n <- 100
-  p <- 20
-  support_size <- 4
-  dataset <- generate.data(n, p, support_size, snr = 0.2)
-  test_dataset <- generate.data(10 * n, p, support_size, snr = 0.2)
+  n <- 400
+  p <- 800
+  support_size <- 5
+  Tbeta <- rep(0, p)
+  Tbeta[seq.int(1, p, length.out = support_size)] <- 1
+  dataset <- generate.data(n, p, snr = 0.1, 
+                           beta = Tbeta, cortype = 3, rho = 0.6, seed = 3)
+  test_dataset <- generate.data(10 * n, p, 
+                                snr = 0.1, beta = Tbeta, 
+                                cortype = 3, rho = 0.6, seed = 2)
   
-  abess_fit <- abess(dataset[["x"]], dataset[["y"]])
-  y_pred <- as.vector(predict(abess_fit, newx = test_dataset[["x"]]))
-  error_l0 <- sqrt(mean((test_dataset[["y"]] - y_pred)^2))
+  # y_true <- as.vector(dataset[["x"]] %*% as.matrix(Tbeta))
+  y_true <- as.vector(test_dataset[["x"]] %*% as.matrix(Tbeta))
+  # y_true <- as.vector(test_dataset[["y"]])
   
-  abess_fit <- abess(dataset[["x"]], dataset[["y"]], 
-                     lambda = 10^(seq(-4, 1, length.out = 10)))
+  abess_fit <- abess(dataset[["x"]], dataset[["y"]], nfolds = 10, 
+                     num.threads = 1)
+  plot(abess_fit, type = "tune")
+  plot(abess_fit, type = "dev")
+  # y_pred <- as.vector(predict(abess_fit, newx = dataset[["x"]]))
   y_pred <- as.vector(predict(abess_fit, newx = test_dataset[["x"]]))
-  error_l0l2 <- sqrt(mean((test_dataset[["y"]] - y_pred)^2))
+  error_l0 <- sum(y_true - y_pred)^2 / sum(y_true)^2
+  
+  lambda_max <- sqrt(sum(cov(dataset[["x"]], dataset[["y"]])^2))
+  lambda_max_order <- round(log10(lambda_max))
+  # lambda_max_order <- -2
+  abess_fit_l2 <- abess(
+    dataset[["x"]],
+    dataset[["y"]],
+    num.threads = 1,
+    important.search = p, 
+    support.size = 0:10,
+    ic.scale = 1.0, 
+    lambda = 10 ^ (seq(
+      lambda_max_order - 5, lambda_max_order,
+      length.out = 10
+    ))
+  )
+  plot(abess_fit_l2, type = "dev")
+  plot(abess_fit_l2, type = "tune")
+  # y_pred <- as.vector(predict(abess_fit_l2, newx = dataset[["x"]]))
+  y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]]))
+  error_l0l2 <- sum(y_true - y_pred)^2 / sum(y_true)^2
   expect_lt(error_l0l2, error_l0)
+  
+  fit.abess <- splicing::bess(
+    dataset[["x"]],
+    dataset[["y"]],
+    method = "sequential",
+    s.list = 1:30,
+    warm.start = TRUE,
+    exchange.num = 5,
+    exchange = TRUE,
+    gamma = 0
+  )
+  fit.abess[["mse"]]
+  fit.abess[["lambda"]] * 400
+  plot(fit.abess[["sigma"]])
+  
+  skip_if_not_installed("L0Learn")
+  require(L0Learn)
+  l0learn_fit <- L0Learn.cvfit(dataset[["x"]], dataset[["y"]],
+                               penalty = "L0L2", nGamma = 100, nLambda = 100)
+  # l0learn_fit <- L0Learn.cvfit(dataset[["x"]], dataset[["y"]], 
+  #                              penalty = "L0", nLambda = 100)
+  plot(l0learn_fit)
+  optimalGammaIndex <- which.min(sapply(l0learn_fit$cvMeans, min))
+  optimalLambdaIndex <- which.min(l0learn_fit$cvMeans[[optimalGammaIndex]])
+  optimalLambda <- l0learn_fit$fit$lambda[[optimalGammaIndex]][optimalLambdaIndex]
+  optimalGamma <- l0learn_fit$fit$gamma[optimalGammaIndex]
+  sum(as.vector(coef(l0learn_fit, lambda = optimalLambda, gamma = optimalGamma)) != 0)
+  y_pred <- as.vector(predict(l0learn_fit, newx = test_dataset[["x"]], 
+                              lambda = optimalLambda, gamma = optimalGamma))
+  error_l0learn_l0l2 <- sum(y_true - y_pred)^2 / sum(y_true)^2
+  expect_lt(error_l0learn_l0l2, error_l0)
 })

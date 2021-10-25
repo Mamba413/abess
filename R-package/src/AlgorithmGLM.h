@@ -345,29 +345,28 @@ public:
       Eigen::MatrixXd eigen_vector = eigensolver.eigenvectors();
       // find a lambda that is closest to 0
       // std::cout << "first derivation: " << std::endl;
-      // int minimum_index = -1;
-      // double minimum_first_derivation = DBL_MAX, temp;
-      // for (unsigned int i = 0; i < lambda_num; i++)
-      // {
-      //   temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
-      //   temp = std::abs(temp);
-      //   // std::cout << temp << " ";
-      //   if (temp < minimum_first_derivation) 
-      //   {
-      //     minimum_index = i;
-      //     minimum_first_derivation = temp;
-      //   }
-      // }
-      // if (minimum_index == -1) {
-      //   minimum_index = 0;
-      // }
+      int minimum_index = -1;
+      double minimum_first_derivation = DBL_MAX, temp;
+      for (unsigned int i = 0; i < lambda_num; i++)
+      {
+        temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
+        temp = std::abs(temp);
+        // std::cout << temp << " ";
+        if (temp < minimum_first_derivation) 
+        {
+          minimum_index = i;
+          minimum_first_derivation = temp;
+        }
+      }
+      if (minimum_index == -1) {
+        minimum_index = 0;
+      }
       // std::cout << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
       // XTX = XTX + this->lambda_seq(minimum_index) * Eigen::MatrixXd::Identity(X.cols(), X.cols());
 
       double optima_lambda = search_optimal_lambda(this->lambda_seq, eigen_value, eigen_vector, beta0, noise);
       // std::cout << "optimal lambda (new): " << optima_lambda << std::endl;
       XTX = XTX + optima_lambda * Eigen::MatrixXd::Identity(X.cols(), X.cols());
-      // this->lambda_level = optima_lambda;
     } 
     else 
     {
@@ -540,7 +539,7 @@ public:
       if (eigensolver.info() != Success) abort();
       Eigen::VectorXd eigen_value = eigensolver.eigenvalues();
       Eigen::MatrixXd eigen_vector = eigensolver.eigenvectors();
-      double optima_lambda = search_optimal_lambda(this->lambda_seq, eigen_value, eigen_vector, beta0, noise);
+      double optima_lambda = this->search_optimal_lambda(this->lambda_seq, eigen_value, eigen_vector, beta0, noise);
       XTX = XTX + optima_lambda * Eigen::MatrixXd::Identity(p + 1, p + 1);
       Eigen::MatrixXd hat_matrix = X * XTX.ldlt().solve(Eigen::MatrixXd::Identity(p + 1, p + 1)) * X.adjoint();
       return hat_matrix.trace();
