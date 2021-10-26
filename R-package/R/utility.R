@@ -311,7 +311,7 @@ generate.data <- function(n,
   set.seed(NULL)
 
   colnames(x) <- paste0("x", 1:p)
-  return(list(x = x, y = y, beta = beta))
+  return(list(x = x, y = y, beta = beta, Sigma = Sigma, sigma = sigma))
 }
 
 generatedata2 <- function(eta) {

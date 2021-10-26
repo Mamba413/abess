@@ -365,7 +365,7 @@ public:
       // XTX = XTX + this->lambda_seq(minimum_index) * Eigen::MatrixXd::Identity(X.cols(), X.cols());
 
       double optima_lambda = search_optimal_lambda(this->lambda_seq, eigen_value, eigen_vector, beta0, noise);
-      std::cout << "optimal lambda (new): " << optima_lambda << std::endl;
+      // std::cout << "optimal lambda (new): " << optima_lambda << std::endl;
       this->lambda_level = optima_lambda;
       XTX = XTX + optima_lambda * Eigen::MatrixXd::Identity(X.cols(), X.cols());
     } 

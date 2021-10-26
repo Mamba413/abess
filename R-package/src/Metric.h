@@ -238,6 +238,21 @@ public:
     {
       loss = 2 * (algorithm->get_train_loss() - algorithm->lambda_level * algorithm->beta.cwiseAbs2().sum());
     }
+    // if (algorithm->lambda_seq.size() == 1) {
+    //   if (algorithm->model_type == 1 || algorithm->model_type == 5)
+    //   {
+    //     loss = train_n * log(algorithm->get_train_loss() - algorithm->lambda_level  * algorithm->beta.cwiseAbs2().sum());
+    //   }
+    //   else
+    //   {
+    //     loss = 2 * (algorithm->get_train_loss() - algorithm->lambda_level * algorithm->beta.cwiseAbs2().sum());
+    //   }
+    // } else {
+    //   if (algorithm->model_type == 1 || algorithm->model_type == 5)
+    //   {
+    //     loss = train_n * log(algorithm->get_train_loss());
+    //   }
+    // }
 
     if (ic_type == 1)
     {
@@ -249,7 +264,6 @@ public:
     }
     else if (ic_type == 3)
     {
-      std::cout << "loss: " << loss << "; edf: " << algorithm->get_effective_number() << std::endl;
       return loss + this->ic_coef * log(double(N)) * log(log(double(train_n))) * algorithm->get_effective_number();
     }
     else if (ic_type == 4)

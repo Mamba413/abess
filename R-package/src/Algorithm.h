@@ -333,8 +333,8 @@ public:
     //   this->coef0 = coef0_old;
     // }else{
     slice_restore(beta_A, A_ind, this->beta);
-    std::cout << "model size: " << T0 << "; optimal lambda: " << this->lambda_level << std::endl;
-    this->train_loss = neg_loglik_loss(X_A, train_y, train_weight, beta_A, this->coef0, A, g_index, g_size, 0.0);
+    // std::cout << "model size: " << T0 << "; optimal lambda: " << this->lambda_level << std::endl;
+    this->train_loss = neg_loglik_loss(X_A, train_y, train_weight, beta_A, this->coef0, A, g_index, g_size, this->lambda_level);
     // }
     this->primary_model_fit_max_iter -= 20;
 
@@ -552,7 +552,7 @@ public:
 
       bool success = primary_model_fit(X_A_exchage, y, weights, beta_A_exchange, coef0_A_exchange, train_loss, A_exchange, g_index, g_size);
       // if (success){
-      L = neg_loglik_loss(X_A_exchage, y, weights, beta_A_exchange, coef0_A_exchange, A_exchange, g_index, g_size, 0.0);
+      L = neg_loglik_loss(X_A_exchage, y, weights, beta_A_exchange, coef0_A_exchange, A_exchange, g_index, g_size, this->lambda_level);
       // }else{
       //   L = train_loss + 1;
       // }

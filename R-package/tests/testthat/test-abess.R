@@ -482,37 +482,53 @@ test_that("abess (L2 regularization) works", {
 })
 
 test_that("abess (L2 regularization better in low SNP regime) works", {
+  relative_test_error <- function(beta_est, beta, Sigma, sigma) {
+    risk <- t(beta_est - beta) %*% Sigma %*% as.matrix(beta_est - beta)
+    rte <- (risk + sigma) / sigma
+    rte <- as.vector(rte)
+    rte
+  }
+  
+  relative_risk <- function(beta_est, beta, Sigma) {
+    risk <- t(beta_est - beta) %*% Sigma %*% as.matrix(beta_est - beta)
+    signal_var <- t(beta) %*% Sigma %*% as.matrix(beta)
+    rr <- risk / signal_var
+    rr <- as.vector(rr)
+    rr
+  }
+  
   n <- 400
   p <- 800
   support_size <- 20
   Tbeta <- rep(0, p)
   Tbeta[seq.int(1, p, length.out = support_size)] <- 1
-  dataset <- generate.data(n, p, snr = 0.5, 
+  dataset <- generate.data(n, p, snr = 0.05, 
                            beta = Tbeta, cortype = 3, rho = 0.6, seed = 1)
-  test_dataset <- generate.data(2 * n, p, 
-                                snr = 0.5, beta = Tbeta, 
-                                cortype = 3, rho = 0.6, seed = 3)
-  
-  y_true <- as.vector(dataset[["x"]] %*% as.matrix(Tbeta))
-  # y_true <- as.vector(test_dataset[["x"]] %*% as.matrix(Tbeta))
-  # y_true <- as.vector(test_dataset[["y"]])
   
   abess_fit <- abess(dataset[["x"]], dataset[["y"]], 
-                     num.threads = 1)
+                     splicing.type = 1, c.max = 20, 
+                     num.threads = 1, tune.type = "cv")
   plot(abess_fit, type = "tune")
-  # y_pred <- as.vector(predict(abess_fit, newx = dataset[["x"]]))
-  y_pred <- as.vector(predict(abess_fit, newx = test_dataset[["x"]]))
-  error_l0 <- sum(y_true - y_pred)^2 / sum(y_true)^2
+  beta_est <- as.vector(extract(abess_fit)[["beta"]])
+  l0_rte <- relative_test_error(beta_est, dataset[["beta"]], 
+                                dataset[["Sigma"]], dataset[["sigma"]])
+  l0_rr <- relative_risk(beta_est, dataset[["beta"]], 
+                         dataset[["Sigma"]])
+  # beta_est <- as.vector(extract(abess_fit, support.size = 19)[["beta"]])
+  # l0_rte <- relative_test_error(beta_est, dataset[["beta"]], 
+  #                               dataset[["Sigma"]], dataset[["sigma"]])
+  # l0_rr <- relative_risk(beta_est, dataset[["beta"]], 
+  #                        dataset[["Sigma"]])
   
   lambda_max <- sqrt(sum(cov(dataset[["x"]], dataset[["y"]])^2))
   # lambda_max <- sqrt(sum((t(dataset[["x"]]) %*% dataset[["y"]])))
   lambda_max_order <- round(log10(lambda_max))
-  # lambda_max_order <- 2
+  # lambda_max_order <- 4
   abess_fit_l2 <- abess(
     dataset[["x"]],
     dataset[["y"]],
-    num.threads = 1,
-    support.size = 0:50,
+    support.size = 0:50, 
+    tune.type = "cv", 
     splicing.type = 1, c.max = 20, 
     lambda = 10 ^ (seq(
       lambda_max_order - 5, lambda_max_order,
@@ -521,12 +537,15 @@ test_that("abess (L2 regularization better in low SNP regime) works", {
   )
   plot(abess_fit_l2, type = "dev")
   plot(abess_fit_l2, type = "tune")
-  # y_pred <- as.vector(predict(abess_fit_l2, newx = dataset[["x"]]))
-  # y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]]))
-  y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]]))
-  y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]], support.size = 15))
-  y_pred <- as.vector(predict(abess_fit_l2, newx = test_dataset[["x"]], support.size = 19))
-  error_l0l2 <- sum(y_true - y_pred)^2 / sum(y_true)^2
+  beta_est <- as.vector(extract(abess_fit_l2)[["beta"]])
+  l0l2_rte <- relative_test_error(beta_est, dataset[["beta"]], 
+                                dataset[["Sigma"]], dataset[["sigma"]])
+  l0l2_rr <- relative_risk(beta_est, dataset[["beta"]], dataset[["Sigma"]])
+  # beta_est <- as.vector(extract(abess_fit_l2, support.size = 20)[["beta"]])
+  # l0l2_rte <- relative_test_error(beta_est, dataset[["beta"]],
+  #                               dataset[["Sigma"]], dataset[["sigma"]])
+  # l0l2_rr <- relative_risk(beta_est, dataset[["beta"]],
+  #                        dataset[["Sigma"]])
   expect_lt(error_l0l2, error_l0)
   
   fit.abess <- splicing::bess(
@@ -539,9 +558,6 @@ test_that("abess (L2 regularization better in low SNP regime) works", {
     exchange = TRUE,
     gamma = 0
   )
-  fit.abess[["mse"]]
-  fit.abess[["lambda"]] * 400
-  plot(fit.abess[["sigma"]])
   
   skip_if_not_installed("L0Learn")
   require(L0Learn)
@@ -554,9 +570,10 @@ test_that("abess (L2 regularization better in low SNP regime) works", {
   optimalLambdaIndex <- which.min(l0learn_fit$cvMeans[[optimalGammaIndex]])
   optimalLambda <- l0learn_fit$fit$lambda[[optimalGammaIndex]][optimalLambdaIndex]
   optimalGamma <- l0learn_fit$fit$gamma[optimalGammaIndex]
-  sum(as.vector(coef(l0learn_fit, lambda = optimalLambda, gamma = optimalGamma)) != 0)
-  y_pred <- as.vector(predict(l0learn_fit, newx = test_dataset[["x"]], 
-                              lambda = optimalLambda, gamma = optimalGamma))
-  error_l0learn_l0l2 <- sum(y_true - y_pred)^2 / sum(y_true)^2
+  beta_est <- as.vector(coef(l0learn_fit, lambda = optimalLambda, gamma = optimalGamma))[-1]
+  l0l2learn_rte <- relative_test_error(beta_est, dataset[["beta"]], 
+                                       dataset[["Sigma"]], dataset[["sigma"]])
+  l0l2learn_rr <- relative_risk(beta_est, dataset[["beta"]], dataset[["Sigma"]])
+  sum(as.vector(beta_est != 0))
   expect_lt(error_l0learn_l0l2, error_l0)
 })
