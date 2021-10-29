@@ -187,13 +187,15 @@ generate.data <- function(n,
 
   ### pre-treatment for beta ###
   input_beta <- beta
-  if (multi_y) {
-    beta <- matrix(0, p, y_dim)
-  } else {
-    beta <- rep(0, p)
+  if (is.null(beta)) {
+    if (multi_y) {
+      beta <- matrix(0, p, y_dim)
+    } else {
+      beta <- rep(0, p)
+    }
+    nonzero <- sample(1:p, support.size) 
   }
-  ### pre-treatment for beta ###
-  nonzero <- sample(1:p, support.size)
+  
   if (family == "gaussian") {
     m <- 5 * sqrt(2 * log(p) / n)
     M <- 100 * m
