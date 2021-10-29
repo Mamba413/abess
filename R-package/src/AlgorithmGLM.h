@@ -297,12 +297,13 @@ public:
       eigen_value_new(i) = eigen_value(eigen_value_size - i - 1);
       eigen_vector_new.col(i) = eigen_vector.col(eigen_value_size - i - 1);
     }
-    beta = eigen_vector_new * beta;
+    // beta = eigen_vector_new * beta;
 
+    std::cout << "first derivation: " << std::endl;
     for (unsigned int i = 0; i < lambda_seq.size(); i++)
     {
-      // std::cout << "first derivation: " << std::endl;
       temp = compute_first_derivation(lambda_seq(i), eigen_value_new, beta, noise);
+      std::cout << temp << " ";
       temp = std::abs(temp);
       if (temp < minimum_first_derivation) 
       {
@@ -345,22 +346,22 @@ public:
       Eigen::MatrixXd eigen_vector = eigensolver.eigenvectors();
       // find a lambda that is closest to 0
       // std::cout << "first derivation: " << std::endl;
-      int minimum_index = -1;
-      double minimum_first_derivation = DBL_MAX, temp;
-      for (unsigned int i = 0; i < lambda_num; i++)
-      {
-        temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
-        temp = std::abs(temp);
-        // std::cout << temp << " ";
-        if (temp < minimum_first_derivation) 
-        {
-          minimum_index = i;
-          minimum_first_derivation = temp;
-        }
-      }
-      if (minimum_index == -1) {
-        minimum_index = 0;
-      }
+      // int minimum_index = -1;
+      // double minimum_first_derivation = DBL_MAX, temp;
+      // for (unsigned int i = 0; i < lambda_num; i++)
+      // {
+      //   temp = compute_first_derivation(this->lambda_seq(i), eigen_value, beta0, noise);
+      //   temp = std::abs(temp);
+      //   // std::cout << temp << " ";
+      //   if (temp < minimum_first_derivation) 
+      //   {
+      //     minimum_index = i;
+      //     minimum_first_derivation = temp;
+      //   }
+      // }
+      // if (minimum_index == -1) {
+      //   minimum_index = 0;
+      // }
       // std::cout << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
       // XTX = XTX + this->lambda_seq(minimum_index) * Eigen::MatrixXd::Identity(X.cols(), X.cols());
 
