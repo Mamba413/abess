@@ -299,11 +299,11 @@ public:
     }
     // beta = eigen_vector_new * beta;
 
-    std::cout << "first derivation: " << std::endl;
+    // std::cout << "first derivation: " << std::endl;
     for (unsigned int i = 0; i < lambda_seq.size(); i++)
     {
       temp = compute_first_derivation(lambda_seq(i), eigen_value_new, beta, noise);
-      std::cout << temp << " ";
+      // std::cout << temp << " ";
       temp = std::abs(temp);
       if (temp < minimum_first_derivation) 
       {
@@ -314,6 +314,7 @@ public:
     if (minimum_index == -1) {
       minimum_index = 0;
     }
+    std::cout << std::endl;
     // std::cout << std::endl << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
     // double hkb_lambda = ((double) (p + 1)) * noise / beta0.squaredNorm();
     // std::cout << "HKB lambda: " << hkb_lambda << std::endl;
