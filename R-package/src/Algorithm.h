@@ -230,6 +230,52 @@ public:
 
   int get_l() { return this->l; }
 
+  double compute_first_derivation(double lambda, Eigen::VectorXd eigen_value, Eigen::VectorXd &beta, double noise)
+  {
+    double first_derivation = 0.0;
+    for (unsigned int i = 0; i < eigen_value.size(); i++)
+    {
+      first_derivation += eigen_value(i) * (lambda * beta(i) * beta(i) - noise) / pow(eigen_value(i) + lambda, 3);
+    }
+    
+    return first_derivation;
+  }
+
+  double search_optimal_lambda(Eigen::VectorXd &lambda_seq, Eigen::VectorXd &eigen_value, Eigen::MatrixXd &eigen_vector, VectorXd &beta, double noise)
+  {
+    int minimum_index = -1;
+    double minimum_first_derivation = DBL_MAX, temp;
+    int eigen_value_size = eigen_value.size();
+    Eigen::VectorXd eigen_value_new(eigen_value_size);
+    Eigen::MatrixXd eigen_vector_new(eigen_value_size, eigen_value_size);
+    for (unsigned int i = 0; i < eigen_value_size; i++)
+    {
+      eigen_value_new(i) = eigen_value(eigen_value_size - i - 1);
+      eigen_vector_new.col(i) = eigen_vector.col(eigen_value_size - i - 1);
+    }
+    beta = eigen_vector_new * beta;
+
+    for (unsigned int i = 0; i < lambda_seq.size(); i++)
+    {
+      // std::cout << "first derivation: " << std::endl;
+      temp = compute_first_derivation(lambda_seq(i), eigen_value_new, beta, noise);
+      temp = std::abs(temp);
+      if (temp < minimum_first_derivation) 
+      {
+        minimum_index = i;
+        minimum_first_derivation = temp;
+      }
+    }
+    if (minimum_index == -1) {
+      minimum_index = 0;
+    }
+    // std::cout << std::endl << "optimal lambda: "<< this->lambda_seq(minimum_index) << std::endl;
+    // double hkb_lambda = ((double) (p + 1)) * noise / beta0.squaredNorm();
+    // std::cout << "HKB lambda: " << hkb_lambda << std::endl;
+    double optimal_lambda_level = lambda_seq(minimum_index);
+    return optimal_lambda_level;
+  }
+
   void fit(T4 &train_x, T1 &train_y, Eigen::VectorXd &train_weight, Eigen::VectorXi &g_index, Eigen::VectorXi &g_size, int train_n, int p, int N, Eigen::VectorXi &status, Eigen::MatrixXd sigma)
   {
 
@@ -258,13 +304,7 @@ public:
     if (N == T0)
     {
       this->A_out = Eigen::VectorXi::LinSpaced(N, 0, N - 1);
-      // T2 beta_old = this->beta;
-      // T3 coef0_old = this->coef0;
       bool success = this->primary_model_fit(train_x, train_y, train_weight, this->beta, this->coef0, DBL_MAX, this->A_out, g_index, g_size);
-      // if (!success){
-      //   this->beta = beta_old;
-      //   this->coef0 = coef0_old;
-      // }
       this->train_loss = neg_loglik_loss(train_x, train_y, train_weight, this->beta, this->coef0, this->A_out, g_index, g_size, this->lambda_level);
       this->effective_number = effective_number_of_parameter(train_x, train_x, train_y, train_weight, this->beta, this->beta, this->coef0);
       return;
@@ -285,6 +325,7 @@ public:
     // input: this->beta_init, this->coef0_init, this->A_init, this->I_init
     // for splicing get A;for the others 0;
 
+    // std::cout << "Model size: " << T0 << std::endl;
     Eigen::VectorXi A = inital_screening(train_x, train_y, this->beta, this->coef0, this->A_init, this->I_init, this->bd, train_weight, g_index, g_size, N);
 
     Eigen::VectorXi I = Ac(A, N);
@@ -292,6 +333,12 @@ public:
     // A_list.col(0) = A;
 
     Eigen::VectorXi A_ind = find_ind(A, g_index, g_size, p, N);
+    // std::cout << "A index (start): ";
+    // for (int i = 0; i < T0; i++)
+    // {
+    //   std::cout << A_ind(i) << " ";
+    // }
+    // std::cout << std::endl;
     T4 X_A = X_seg(train_x, train_n, A_ind);
     T2 beta_A;
     slice(this->beta, A_ind, beta_A);
@@ -300,6 +347,7 @@ public:
     // {
 
     // T3 coef0_old = this->coef0;
+    this->lambda_level = 0.0;
     bool success = this->primary_model_fit(X_A, train_y, train_weight, beta_A, this->coef0, DBL_MAX, A, g_index, g_size);
     // if (!success){
     //   this->coef0 = coef0_old;
@@ -323,18 +371,25 @@ public:
     this->A_out = A;
 
     A_ind = find_ind(A, g_index, g_size, p, N);
+    // std::cout << "A index (end): ";
+    // for (int i = 0; i < T0; i++)
+    // {
+    //   std::cout << A_ind(i) << " ";
+    // }
+    // std::cout << std::endl;
     X_A = X_seg(train_x, train_n, A_ind);
     slice(this->beta, A_ind, beta_A);
 
     this->primary_model_fit_max_iter += 20;
     // coef0_old = this->coef0;
+    // std::cout << "The finally selected lambda: " << this->lambda_level << std::endl;
     success = this->primary_model_fit(X_A, train_y, train_weight, beta_A, this->coef0, DBL_MAX, A, g_index, g_size);
     // if (!success){
     //   this->coef0 = coef0_old;
     // }else{
     slice_restore(beta_A, A_ind, this->beta);
-    // std::cout << "model size: " << T0 << "; optimal lambda: " << this->lambda_level << std::endl;
     this->train_loss = neg_loglik_loss(X_A, train_y, train_weight, beta_A, this->coef0, A, g_index, g_size, this->lambda_level);
+    // std::cout << "Output train loss: " << this->train_loss << std::endl;
     // }
     this->primary_model_fit_max_iter -= 20;
 
@@ -431,6 +486,54 @@ public:
         T2 beta_A;
         slice(beta_U, A_ind, beta_A);
 
+        // std::cout << "Initial beta estimation: " << "in the " << num << " iteration:" << std::endl;
+        // std::cout << coef0 << " ";
+        // for (int i = 0; i < T0; i++)
+        // {
+        //   std::cout << beta_A(i) << " ";
+        // }
+        // std::cout << std::endl;
+        // update lambda:
+        unsigned int lambda_num = this->lambda_seq.size();
+        if (lambda_num > 1) {
+          double noise = this->neg_loglik_loss(X_A, y, weights, beta_A, coef0, A_ind, g_index_U, g_size_U, 0.0);
+          T4 X_t(n, T0 + 1);
+          X_t.rightCols(T0) = X_A;
+          add_constant_column(X_t);
+          Eigen::MatrixXd XTX = X_t.adjoint() * X_t;
+          SelfAdjointEigenSolver<MatrixXd> eigensolver(XTX);
+          if (eigensolver.info() != Success) abort();
+          Eigen::VectorXd eigen_value = eigensolver.eigenvalues();
+          Eigen::MatrixXd eigen_vector = eigensolver.eigenvectors();
+          Eigen::VectorXd beta_tmp = XTX.ldlt().solve(X_t.transpose() * y);
+          // std::cout << "Regularized beta: " << std::endl;
+          // for (int i = 0; i < T0 + 1; i++)
+          // {
+          //   std::cout << beta_tmp(i) << " ";
+          // }
+          // std::cout << std::endl;
+          if (T0 == 0) {
+            this->lambda_level = 0.0;
+          } else {
+            // optimal one for equation:
+            this->lambda_level = search_optimal_lambda(lambda_seq, eigen_value, eigen_vector, beta_tmp, noise);
+            // HKB:
+            // this->lambda_level = double(T0 + 1) * noise / beta_tmp.squaredNorm() / double(n);
+          }
+          // std::cout << "Optimal level: " << this->lambda_level << std::endl;
+          bool success_temp = this->primary_model_fit(X_A, y, weights, beta_A, coef0, train_loss, A_ind, g_index_U, g_size_U);
+          this->train_loss = neg_loglik_loss(X_A, y, weights, beta_A, coef0, A_ind, g_index_U, g_size_U, this->lambda_level);
+          slice_restore(beta_A, A_ind, beta_U);
+        }
+        // std::cout << "Initial regularized beta estimation: " << "in the " << num << " iteration: " << std::endl;
+        // std::cout << coef0 << " ";
+        // for (int i = 0; i < T0; i++)
+        // {
+        //   std::cout << beta_A(i) << " ";
+        // }
+        // std::cout << std::endl;
+        // std::cout << "Training loss before splicing: " << train_loss << std::endl;
+
         Eigen::VectorXd bd_U = Eigen::VectorXd::Zero(this->U_size);
         this->sacrifice(*X_U, X_A, y, beta_U, beta_A, coef0, A_U, I_U, weights, g_index_U, g_size_U, this->U_size, A_ind, bd_U, U, U_ind, num);
 
@@ -443,10 +546,15 @@ public:
         bool exchange = this->splicing(*X_U, y, A_U, I_U, C_max, beta_U, coef0, bd_U, weights,
                                        g_index_U, g_size_U, this->U_size, tau, l0);
 
-        if (exchange)
+        // std::cout << "exchange status: " << exchange << std::endl;
+        if (exchange) {
           train_loss = l0;
-        else
+          // std::cout << "Training loss after splicing: " << train_loss << std::endl;
+        }
+        else {
+          // std::cout << "final train loss: " << train_loss << std::endl;
           break; // A_U is stable
+        }
       }
 
       if (A_U.size() == 0 || A_U.maxCoeff() == T0 - 1)
@@ -541,7 +649,6 @@ public:
     T3 coef0_A_exchange;
 
     double L;
-    double optimal_lambda = this->lambda_level;
     for (int k = C_max; k >= 1;)
     {
       A_exchange = diff_union(A, s1, s2);
@@ -556,6 +663,7 @@ public:
       // }else{
       //   L = train_loss + 1;
       // }
+      // std::cout << "Loss after exchange when C = " << k << ": " << L << std::endl;
 
       if (train_loss - L > tau)
       {
@@ -579,7 +687,6 @@ public:
       }
     }
 
-    this->lambda_level = optimal_lambda;
     return false;
   };
 
