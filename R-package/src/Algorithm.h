@@ -485,6 +485,8 @@ public:
         T4 X_A = X_seg(*X_U, n, A_ind);
         T2 beta_A;
         slice(beta_U, A_ind, beta_A);
+        this->lambda_level = 0.0;
+        bool success_temp = this->primary_model_fit(X_A, y, weights, beta_A, coef0, train_loss, A_ind, g_index_U, g_size_U);
 
         // std::cout << "Initial beta estimation: " << "in the " << num << " iteration:" << std::endl;
         // std::cout << coef0 << " ";
@@ -518,7 +520,7 @@ public:
             // optimal one for equation:
             this->lambda_level = search_optimal_lambda(lambda_seq, eigen_value, eigen_vector, beta_tmp, noise);
             // HKB:
-            // this->lambda_level = double(T0 + 1) * noise / beta_tmp.squaredNorm() / double(n);
+            // this->lambda_level = double(T0 + 1) * noise / beta_tmp.squaredNorm();
           }
           // std::cout << "Optimal level: " << this->lambda_level << std::endl;
           bool success_temp = this->primary_model_fit(X_A, y, weights, beta_A, coef0, train_loss, A_ind, g_index_U, g_size_U);
@@ -532,7 +534,7 @@ public:
         //   std::cout << beta_A(i) << " ";
         // }
         // std::cout << std::endl;
-        // std::cout << "Training loss before splicing: " << train_loss << std::endl;
+        std::cout << "Training loss before splicing: " << train_loss << std::endl;
 
         Eigen::VectorXd bd_U = Eigen::VectorXd::Zero(this->U_size);
         this->sacrifice(*X_U, X_A, y, beta_U, beta_A, coef0, A_U, I_U, weights, g_index_U, g_size_U, this->U_size, A_ind, bd_U, U, U_ind, num);
@@ -549,7 +551,7 @@ public:
         // std::cout << "exchange status: " << exchange << std::endl;
         if (exchange) {
           train_loss = l0;
-          // std::cout << "Training loss after splicing: " << train_loss << std::endl;
+          std::cout << "Training loss after splicing: " << train_loss << std::endl;
         }
         else {
           // std::cout << "final train loss: " << train_loss << std::endl;
@@ -663,7 +665,7 @@ public:
       // }else{
       //   L = train_loss + 1;
       // }
-      // std::cout << "Loss after exchange when C = " << k << ": " << L << std::endl;
+      std::cout << "Loss after exchange when C = " << k << ": " << L << std::endl;
 
       if (train_loss - L > tau)
       {
