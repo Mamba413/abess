@@ -325,7 +325,7 @@ public:
     // input: this->beta_init, this->coef0_init, this->A_init, this->I_init
     // for splicing get A;for the others 0;
 
-    // std::cout << "Model size: " << T0 << std::endl;
+    std::cout << "Model size: " << T0 << std::endl;
     Eigen::VectorXi A = inital_screening(train_x, train_y, this->beta, this->coef0, this->A_init, this->I_init, this->bd, train_weight, g_index, g_size, N);
 
     Eigen::VectorXi I = Ac(A, N);
