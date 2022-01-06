@@ -71,4 +71,12 @@ def pywrap_PCA(x, weight, n, p, normalize_type, sigma, max_iter, exchange_num, p
 def pywrap_RPCA(x, n, p, normalize_type, max_iter, exchange_num, path_type, is_warm_start, ic_type, ic_coef, gindex, sequence, lambda_sequence, s_min, s_max, lambda_min, lambda_max, n_lambda, screening_size, always_select, primary_model_fit_max_iter, primary_model_fit_epsilon, early_stop, thread, sparse_matrix, splicing_type, sub_search, A_init, beta_out, coef0_out, train_loss_out, test_loss_out, ic_out):
     return _cabess.pywrap_RPCA(x, n, p, normalize_type, max_iter, exchange_num, path_type, is_warm_start, ic_type, ic_coef, gindex, sequence, lambda_sequence, s_min, s_max, lambda_min, lambda_max, n_lambda, screening_size, always_select, primary_model_fit_max_iter, primary_model_fit_epsilon, early_stop, thread, sparse_matrix, splicing_type, sub_search, A_init, beta_out, coef0_out, train_loss_out, test_loss_out, ic_out)
 
+def ising_sample_by_conf_wrap(n, theta, seed_train, seed_valid, train_out, valid_out):
+    return _cabess.ising_sample_by_conf_wrap(n, theta, seed_train, seed_valid, train_out, valid_out)
+
+def ising_gibbs_wrap(theta, n_sample, burn, skip, value, using_seed, set_seed, data_out):
+    return _cabess.ising_gibbs_wrap(theta, n_sample, burn, skip, value, using_seed, set_seed, data_out)
+
+def pywrap_PCA(x, weight, n, p, normalize_type, sigma, max_iter, exchange_num, path_type, is_warm_start, ic_type, ic_coef, Kfold, gindex, sequence, cv_fold_id, s_min, s_max, screening_size, always_select, early_stop, thread, sparse_matrix, splicing_type, sub_search, pca_num, A_init, beta_out, coef0_out, train_loss_out, ic_out):
+    return _cabess.pywrap_PCA(x, weight, n, p, normalize_type, sigma, max_iter, exchange_num, path_type, is_warm_start, ic_type, ic_coef, Kfold, gindex, sequence, cv_fold_id, s_min, s_max, screening_size, always_select, early_stop, thread, sparse_matrix, splicing_type, sub_search, pca_num, A_init, beta_out, coef0_out, train_loss_out, ic_out)
 

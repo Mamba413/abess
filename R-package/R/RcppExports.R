@@ -13,3 +13,15 @@ abessRPCA_API <- function(x, n, p, max_iter, exchange_num, path_type, is_warm_st
     .Call(`_abess_abessRPCA_API`, x, n, p, max_iter, exchange_num, path_type, is_warm_start, ic_type, ic_coef, sequence, lambda_seq, s_min, s_max, lambda_min, lambda_max, nlambda, screening_size, primary_model_fit_max_iter, primary_model_fit_epsilon, g_index, always_select, early_stop, thread, sparse_matrix, splicing_type, sub_search, A_init)
 }
 
+sample_by_conf <- function(n, theta, seed) {
+    .Call(`_abess_sample_by_conf`, n, theta, seed)
+}
+
+Ising_Gibbs <- function(theta, n_sample, burn, skip, value, seed = 1L) {
+    .Call(`_abess_Ising_Gibbs`, theta, n_sample, burn, skip, value, seed)
+}
+
+# Register entry points for exported C++ functions
+methods::setLoadAction(function(ns) {
+    .Call('_abess_RcppExport_registerCCallable', PACKAGE = 'abess')
+})

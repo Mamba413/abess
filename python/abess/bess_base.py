@@ -318,6 +318,7 @@ class bess_base(BaseEstimator):
                 raise ValueError("weight should be a 1-D array.")
             if weight.size != n:
                 raise ValueError("X.shape[0] should be equal to weight.size")
+        
 
         # Path parameters
         if path_type_int == 1:  # seq
