@@ -14,7 +14,7 @@ nodewise_L0(
   support.size = NULL,
   ic.scale = 1,
   graph.threshold = 0,
-  graph.warm.start = TRUE,
+  graph.warm.start = FALSE,
   newton = c("approx", "exact"),
   max.newton.iter = 100,
   sparse = FALSE,
