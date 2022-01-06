@@ -269,6 +269,18 @@
 #' mean(diag(res[[1]]) - diag(train[["theta"]]))
 #' diag(res[[1]]) <- 0
 #' all((res[[1]] != 0) == (train[["theta"]] != 0))
+#' 
+#' train <- generate.bmn.data(2e5, p = 16, type = 9, alpha = 0.4, beta = 1.0, degree = 3, seed = 2)
+#' valid <- generate.bmn.data(2e5, theta = train[["theta"]], seed = 10000)
+#' x <- rbind(train[["data"]], valid[["data"]])
+#' sample_weight <- c(train[["weight"]], valid[["weight"]])
+#' system.time(res <- nodewise_L0(x, sample_weight, tune.type = "gic", graph.threshold = 0.2))
+#' mean(res[[1]] - train[["theta"]])
+#' all((res[[1]] != 0) == (train[["theta"]] != 0))
+#' system.time(res <- nodewise_L0(x, sample_weight, tune.type = "gic", graph.warm.start = TRUE, graph.threshold = 0.2))
+#' mean(res[[1]] - train[["theta"]])
+#' all((res[[1]] != 0) == (train[["theta"]] != 0))
+#'          
 #' \dontrun{
 #' ## simple test suggest that sparsity is not useful
 #' system.time(res <- nodewise_L0(train[["data"]], train[["weight"]], tune.type = "gic", ic.scale = 1, graph.threshold = 0.2, sparse = TRUE))
@@ -294,6 +306,7 @@ nodewise_L0 <- function(x,
                         support.size = NULL,
                         ic.scale = 1, 
                         graph.threshold = 0.0, 
+                        graph.warm.start = TRUE, 
                         newton = c("approx", "exact"), 
                         max.newton.iter = 100, 
                         sparse = FALSE, 
@@ -336,7 +349,11 @@ nodewise_L0 <- function(x,
     no_fit_flag <- FALSE
     min_nobs <- min(table(x[, node]))
     if (min_nobs > 1) {
-      init_active_set <- which(theta[-node, node] != 0)
+      if (graph.warm.start) {
+        init_active_set <- which(abs(theta[-node, node]) > graph.threshold)
+      } else {
+        init_active_set <- NULL
+      }
       model_node <-
         abess::abess(
           x = x[, -node],
