@@ -83,7 +83,8 @@ gen_rr_adjmat2 <- function(n_node,
                            alpha,
                            type = c("ferro", "glass")) 
 {
-  g <- igraph::sample_k_regular(n_node, degree)
+  # g <- igraph::sample_k_regular(n_node, degree)
+  g <- igraph::sample_degseq(out.deg = rep(degree, n_node), method = "vl")
   adj <- as.matrix(igraph::as_adjacency_matrix(g, type = "both"))
   
   type <- match.arg(type)
