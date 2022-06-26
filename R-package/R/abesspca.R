@@ -25,6 +25,7 @@
 #' It represents the support sizes to be considered for each principal component.
 #' If it is a \code{list} object containing \code{kpc.num} number of integer vectors,
 #' the i-th principal component consider the support size specified in the i-th element in the \code{list}.
+#' Only used for \code{tune.path = "sequence"}.
 #' The default is \code{support.size = NULL}, and some rules in details section are used to specify \code{support.size}.
 #' @param splicing.type Optional type for splicing.
 #' If \code{splicing.type = 1}, the number of variables to be spliced is
@@ -45,7 +46,7 @@
 #' can be efficiently solved.
 #' 
 #' The abessPCA can be conduct sequentially for each component. 
-#' Please see the multiple principal components Section on the [webite](https://abess-team.github.io/abess/articles/v08-sPCA.html) 
+#' Please see the multiple principal components Section on the [website](https://abess-team.github.io/abess/articles/v08-sPCA.html) 
 #' for more details about this function. 
 #' For \code{abesspca} function, the arguments \code{kpc.num} control the number of components to be consider. 
 #'
@@ -63,18 +64,19 @@
 #' \item{nvars}{The number of variables.}
 #' \item{sparse.type}{The same as input.}
 #' \item{support.size}{The actual support.size values used. Note that it is not necessary the same as the input if the later have non-integer values or duplicated values.}
-#' \item{ev}{A vector with size \code{length(support.size)}. It records the explained variance at each support size.}
+#' \item{ev}{A vector with size \code{length(support.size)}. It records the cumulative sums of explained variance at each support size.}
 #' \item{tune.value}{A value of tuning criterion of length \code{length(support.size)}.}
 #' \item{kpc.num}{The number of principal component being considered.}
 #' \item{var.pc}{The variance of principal components obtained by performing standard PCA.}
 #' \item{cum.var.pc}{Cumulative sums of \code{var.pc}.}
 #' \item{var.all}{If \code{sparse.type = "fpc"},
 #' it is the total standard deviations of all principal components.}
-#' \item{cum.ev}{Cumulative sums of explained variance.}
 #' \item{pev}{A vector with the same length as \code{ev}. It records the percent of explained variance (compared to \code{var.all}) at each support size.}
 #' \item{pev.pc}{It records the percent of explained variance (compared to \code{var.pc}) at each support size.}
+#' \item{tune.type}{The criterion type for tuning parameters.}
+#' \item{tune.path}{The strategy for tuning parameters.}
 #' \item{call}{The original call to \code{abess}.}
-#' It is worthy to note that, if \code{sparse.type == "kpc"}, the \code{ev}, \code{tune.value}, \code{pev} and \code{pev.pc} in list are \code{list} objects.
+#' It is worthy to note that, if \code{sparse.type == "kpc"}, the \code{coef}, \code{support.size}, \code{ev}, \code{tune.value}, \code{pev} and \code{pev.pc} in list are \code{list} objects.
 #'
 #' @author Jin Zhu, Junxian Zhu, Ruihuang Liu, Junhao Huang, Xueqin Wang
 #' 
@@ -134,8 +136,10 @@ abesspca <- function(x,
                      type = c("predictor", "gram"),
                      sparse.type = c("fpc", "kpc"),
                      cor = FALSE,
+                     kpc.num = NULL,
                      support.size = NULL,
-                     kpc.num = ifelse(sparse.type == "fpc", 1, 2),
+                     gs.range = NULL,
+                     tune.path = c("sequence", "gsection"),
                      tune.type = c("gic", "aic", "bic", "ebic", "cv"),
                      nfolds = 5,
                      foldid = NULL,
@@ -143,270 +147,81 @@ abesspca <- function(x,
                      c.max = NULL,
                      always.include = NULL,
                      group.index = NULL,
+                     screening.num = NULL, 
                      splicing.type = 1,
                      max.splicing.iter = 20,
                      warm.start = TRUE,
                      num.threads = 0,
                      ...) {
-  support.num <- NULL
-  important.search <- NULL
-
-  ## check number of thread:
-  stopifnot(is.numeric(num.threads) & num.threads >= 0)
-  num_threads <- as.integer(num.threads)
-
-  ## check warm start:
-  stopifnot(is.logical(warm.start))
-
-  ## check splicing type
-  stopifnot(length(splicing.type) == 1)
-  stopifnot(splicing.type %in% c(1, 2))
-  splicing_type <- as.integer(splicing.type)
-
-  ## check max splicing iteration
-  stopifnot(is.numeric(max.splicing.iter) & max.splicing.iter >= 1)
-  max_splicing_iter <- as.integer(max.splicing.iter)
-
-  ## check x matrix:
-  stopifnot(class(x)[1] %in% c("matrix", "data.frame", "dgCMatrix"))
-  nvars <- ncol(x)
-  nobs <- nrow(x)
-  sparse_X <- ifelse(class(x)[1] %in% c("matrix", "data.frame"), FALSE, TRUE)
-  if (sparse_X) {
-  } else {
-    if (is.data.frame(x)) {
-      x <- as.matrix(x)
-    }
-    if (!is.numeric(x)) {
-      stop("x must be a *numeric* matrix/data.frame!")
-    }
-    if (nvars == 1) {
-      stop("x should have at least two columns!")
-    }
-    if (anyNA(x) || any(is.infinite(x))) {
-      stop("x has missing value or infinite value!")
-    }
-  }
-  vn <- colnames(x)
-  if (is.null(vn)) {
-    vn <- paste0("x", 1:nvars)
-  }
-
-  ## check sparse.type
+  
   sparse.type <- match.arg(sparse.type)
-  stopifnot(kpc.num >= 1)
-  check_integer_warning(kpc.num, "kpc.num should be an integer. It is coerced to as.integer(kpc.num).")
-  sparse.type <- ifelse(kpc.num == 1, "fpc", "kpc")
+  tune.type <- match.arg(tune.type)
+  tune.path <- match.arg(tune.path)
+  type <- match.arg(type)
 
-  ## compute gram matrix
-  sparse_matrix <- FALSE
-  cov_type <- match.arg(type)
-  if (cov_type == "gram") {
-    stopifnot(dim(x)[1] == dim(x)[2])
-    stopifnot(all(t(x) == x))
-    ## eigen values:
-    eigen_value <- eigen(x, only.values = TRUE)[["values"]]
-    eigen_value <- (eigen_value + abs(eigen_value)) / 2
-    gram_x <- x
-    x <- matrix(0, ncol = nvars, nrow = 1)
-  } else {
-    stopifnot(length(cor) == 1)
-    stopifnot(is.logical(cor))
-    ## eigen values:
-    if (!cor) {
-      singular_value <- (svd(scale(x, center = TRUE, scale = FALSE))[["d"]])^2 # improve runtimes
-      eigen_value <- singular_value / nobs
-    } else {
-      singular_value <- (svd(scale(x, center = TRUE, scale = TRUE))[["d"]])^2 # improve runtimes
-      eigen_value <- singular_value / (nobs - 1)
-    }
+  data <- list(x=x)
+  
+  para <- Initialization_PCA(
+    type = type,
+    sparse.type = sparse.type,
+    cor = cor,
+    support.size = support.size,
+    kpc.num = kpc.num,
+    tune.path = tune.path, 
+    gs.range = gs.range, 
+    tune.type = tune.type,
+    nfolds = nfolds,
+    foldid = foldid,
+    ic.scale = ic.scale,
+    c.max = c.max,
+    always.include = always.include,
+    group.index = group.index,
+    splicing.type = splicing.type,
+    max.splicing.iter = max.splicing.iter,
+    screening.num = screening.num,
+    warm.start = warm.start,
+    num.threads = num.threads,
+    support.num = NULL,
+    important.search = NULL
+  )
 
-    if (sparse_X) {
-      if (cor) {
-        gram_x <- sparse.cov(x, cor = TRUE)
-      } else {
-        gram_x <- sparse.cov(x)
-      }
-      x <- map_dgCMatrix2entry(x)
-      sparse_matrix <- TRUE
-    } else {
-      if (cor) {
-        gram_x <- stats::cor(x)
-      } else {
-        gram_x <- stats::cov(x)
-      }
-    }
-    if (!cor) {
-      gram_x <- ((nobs - 1) / nobs) * gram_x
-    }
-    # x <- round(x, digits = 13)
-  }
-
-  # if (sparse.type == "fpc") {
-  #   eigen_value <- eigen_value[1]
-  # }
-  pc_variance <- eigen_value
-  total_variance <- sum(eigen_value)
-
-  ## total variance:
-  # svdobj <- svd(x)
-  # stopifnot(all(svdobj[["d"]] > 0))
-  # total_variance <- sum((svdobj[["d"]])^2)
-  # v <- svdobj[["v"]]
-
-  ## check lambda:
-  lambda <- 0
-  stopifnot(!anyNA(lambda))
-  stopifnot(all(lambda >= 0))
-
-  ## group variable:
-  group_select <- FALSE
-  if (is.null(group.index)) {
-    g_index <- 1:nvars - 1
-    ngroup <- 1
-  } else {
-    group_select <- TRUE
-    gi <- unique(group.index)
-    g_index <- match(gi, group.index) - 1
-    g_df <- c(diff(g_index), nvars - max(g_index))
-    ngroup <- length(g_index)
-    max_group_size <- max(g_df)
-  }
-
-  # sparse level list (sequence):
-  if (group_select) {
-    s_max <- ngroup
-  } else {
-    s_max <- nvars
-  }
-  if (is.null(support.size)) {
-    if (kpc.num == 1) {
-      if (is.null(support.num)) {
-        if (group_select) {
-          s_num <- min(ngroup, 100)
-        } else {
-          s_num <- min(nvars, 100)
-        }
-      }
-      # else {
-      #   s_num <- support.num
-      #   if (group_select) {
-      #     stopifnot(s_num <= ngroup)
-      #   } else {
-      #     stopifnot(s_num <= nvars)
-      #   }
-      # }
-      s_list <- round(seq.int(from = 1, to = s_max, length.out = s_num))
-      s_list <- unique(s_list)
-      k_num <- 1
-    } else {
-      if (group_select) {
-        s_num <- min(ngroup, 100)
-      } else {
-        s_num <- min(nvars, 100)
-      }
-      s_list <- as.list(rep(s_num, kpc.num))
-    }
-  } else {
-    stopifnot(any(is.numeric(support.size) & support.size >= 0))
-    if (group_select) {
-      stopifnot(max(support.size) <= ngroup)
-    } else {
-      stopifnot(max(support.size) <= nvars)
-    }
-    if (kpc.num == 1) {
-      support.size <- sort(support.size)
-      support.size <- unique(support.size)
-    } else {
-      if (class(support.size) == "list") {
-        stopifnot(length(support.size) == kpc.num)
-        support.size <- lapply(support.size, function(x) {
-          support.size <- unique(support.size)
-          support.size
-        })
-      } else if (is.vector(support.size)) {
-        support.size <- sort(support.size)
-        support.size <- unique(support.size)
-        support.size <- rep(list(support.size), kpc.num)
-      } else {
-        stop("support.size must be vector or list.")
-      }
-    }
-    s_list <- support.size
-  }
-  s_list_bool_nrow <- ifelse(group_select, ngroup, nvars)
-  if (class(s_list) == "list") {
-    s_list_bool <- matrix(0, nrow = s_list_bool_nrow, ncol = kpc.num)
-    for (i in 1:kpc.num) {
-      s_list_bool[s_list[[i]], ] <- 1
-    }
-  } else {
-    s_list_bool <- matrix(0, nrow = s_list_bool_nrow, ncol = 1)
-    s_list_bool[s_list, ] <- 1
-  }
-
-  ## check C-max:
-  s_list_max <- max(unlist(s_list))
-  if (is.null(c.max)) {
-    c_max <- max(c(2, round(s_list_max / 2)))
-  } else {
-    stopifnot(is.numeric(c.max) & c.max >= 1)
-    check_integer_warning(
-      c.max,
-      "c.max should be an integer. It is coerced to as.integer(c.max)."
-    )
-    c_max <- as.integer(c.max)
-  }
-
-  ## check always included variables:
-  if (is.null(always.include)) {
-    always_include <- numeric(0)
-  } else {
-    if (anyNA(always.include)) {
-      stop("always.include has missing values.")
-    }
-    if (any(always.include <= 0)) {
-      stop("always.include should be an vector containing variable indexes which is positive.")
-    }
-    always.include <- as.integer(always.include) - 1
-    if (length(always.include) > s_list_max) {
-      stop("always.include containing too many variables.
-             The length of it should not exceed the maximum in support.size.")
-    }
-
-    always_include <- always.include
-  }
-
-  ## important searching:
-  if (is.null(important.search)) {
-    important_search <- as.integer(0)
-  } else {
-    stopifnot(is.numeric(important.search))
-    stopifnot(important.search >= 0)
-    important_search <- as.integer(important.search)
-  }
-
-  ##
-  tune_type <- match.arg(tune.type)
-  if (cov_type == "gram" && tune_type == "cv") {
-    warnings("Cross validation is not allow when input a gram matrix.
-             Coerce into tune.type = 'gic'.")
-    tune_type <- "gic"
-  }
-  ic_type <- map_tunetype2numeric(tune_type)
-  if (tune_type != "cv") {
-    nfolds <- 1
-    cv_fold_id <- integer(0)
-  } else {
-    if (is.null(foldid)) {
-      cv_fold_id <- integer(0)
-      nfolds <- check_nfold(nfolds)
-    } else {
-      cv_fold_id <- check_foldid(foldid, nobs)
-      nfolds <- length(unique(nfolds))
-    }
-  }
-
+  model <- initializate(para, data)
+  para <- model$para
+  data <- model$data
+  
+  x <- data$x
+  tune.path <- para$tune.path
+  gs.range <- para$gs.range
+  kpc.num <- para$kpc.num
+  warm.start <- para$warm.start
+  num_threads  <- para$num_threads 
+  splicing_type  <- para$splicing_type 
+  max_splicing_iter <- para$max_splicing_iter
+  nobs <- para$nobs
+  nvars <- para$nvars
+  vn <- para$vn
+  g_index <- para$g_index
+  s_list <- para$s_list
+  c_max <- para$c_max
+  ic_scale <- para$ic_scale
+  important_search <- para$important_search
+  always_include <- para$always_include
+  s_max <- para$s_max
+  s_min <- para$s_min
+  s_list_bool <- para$s_list_bool
+  tune_type <- para$tune_type
+  ic_type <- para$ic_type
+  cv_fold_id <- para$cv_fold_id
+  nfolds <- para$nfolds
+  sparse.type <- para$sparse.type
+  sparse_matrix <- para$sparse_matrix
+  gram_x <- para$gram_x
+  pc_variance <- para$pc_variance
+  total_variance  <- para$total_variance 
+  screening_num <- para$screening_num
+  screening <- para$screening
+  path_type <- para$path_type
+  
   ## Cpp interface:
   result <- abessPCA_API(
     x = x,
@@ -418,19 +233,19 @@ abesspca <- function(x,
     # algorithm_type = 6,
     max_iter = max_splicing_iter,
     exchange_num = c_max,
-    path_type = 1,
+    path_type = path_type,
     is_warm_start = warm.start,
     ic_type = 1,
-    ic_coef = ic.scale,
+    ic_coef = ic_scale,
     Kfold = nfolds,
     sequence = s_list_bool,
-    s_min = 0,
-    s_max = 10,
-    screening_size = -1,
+    s_min = s_min,
+    s_max = s_max,
+    screening_size = ifelse(screening_num >= nvars, -1, screening_num),
     g_index = g_index,
     always_select = always_include,
     early_stop = FALSE,
-    thread = num.threads,
+    thread = num_threads,
     sparse_matrix = sparse_matrix,
     splicing_type = splicing_type,
     sub_search = important_search,
@@ -438,7 +253,31 @@ abesspca <- function(x,
     pca_num = kpc.num, 
     A_init = as.integer(c())
   )
+  
+  if(tune.path == "gsection"){
+    if(sparse.type == "fpc"){
+      # sort and delete duplicate things in result
+      gs_unique_index <- match(sort(unique(result[["sequence"]])), result[["sequence"]])
 
+      s_list <- result[["sequence"]][gs_unique_index]
+      result[["beta_all"]] <- result[["beta_all"]][gs_unique_index]
+      result[["train_loss_all"]] <- result[["train_loss_all"]][gs_unique_index]
+      result[["ic_all"]] <- result[["ic_all"]][gs_unique_index]
+      result[["test_loss_all"]] <- result[["test_loss_all"]][gs_unique_index]
+    } else{
+      s_list <- list()
+      for(i in seq_len(kpc.num)){
+        # sort and delete duplicate things in result
+        gs_unique_index <- match(sort(unique(result[[i]][["sequence"]])), result[[i]][["sequence"]])
+        s_list[[i]] <- result[[i]][["sequence"]][gs_unique_index]
+        result[[i]][["beta_all"]] <- result[[i]][["beta_all"]][gs_unique_index]
+        result[[i]][["train_loss_all"]] <- result[[i]][["train_loss_all"]][gs_unique_index]
+        result[[i]][["ic_all"]] <- result[[i]][["ic_all"]][gs_unique_index]
+        result[[i]][["test_loss_all"]] <- result[[i]][["test_loss_all"]][gs_unique_index]
+      }
+    }
+    result[["sequence"]] <- NULL
+  }
   # result[["beta"]] <- NULL
   # result[["coef0"]] <- NULL
   # result[["train_loss"]] <- NULL
@@ -446,11 +285,11 @@ abesspca <- function(x,
   # result[["coef0_all"]] <- NULL
   # result[["ic_all"]] <- NULL
   # result[["test_loss_all"]] <- NULL
-
+  
   if (sparse.type == "fpc") {
     names(result)[which(names(result) == "beta_all")] <- "coef"
     # result[["coef"]] <- result[["beta_all"]]
-    result[["ev"]] <- -result[["train_loss_all"]][, 1]
+    result[["ev"]] <- -result[["train_loss_all"]]
     # names(result)[which(names(result) == "train_loss_all")] <- "ev"
     # result[["ev"]] <- - result[["ev"]][, 1]
     result[["coef"]] <- do.call("cbind", result[["coef"]])
@@ -484,7 +323,7 @@ abesspca <- function(x,
         dimnames = list(vn, as.character(s_list[[i]]))
       )
     }
-    ev_list <- list(-result[[1]][["train_loss_all"]][, 1])
+    ev_list <- list(-result[[1]][["train_loss_all"]])
     for (i in 2:kpc.num) {
       ev_vec <- c()
       tmp <- coef_list[[1]]
@@ -496,7 +335,7 @@ abesspca <- function(x,
         j <- j + 1
       }
       tmp2 <- coef_list[[j]]
-      for (k in 1:ncol(tmp2)) {
+      for (k in seq_len(ncol(tmp2))) {
         ev_vec <- c(ev_vec, sum(adjusted_variance_explained(gram_x, cbind(tmp, tmp2[, k]))))
       }
       ev_list[[i]] <- ev_vec
@@ -534,7 +373,10 @@ abesspca <- function(x,
   result[["sparse.type"]] <- sparse.type
   result[["support.size"]] <- s_list
   result[["tune.type"]] <- tune_type
-
+  result[["tune.path"]] <- tune.path
+  if(tune.path == "gsection"){
+    result[["gs.range"]] <- c(s_min,s_max)
+  }
   result[["call"]] <- match.call()
   class(result) <- "abesspca"
   result
@@ -548,19 +390,6 @@ adjusted_variance_explained <- function(covmat, loading) {
   ev <- abs(diag(qr.R(qr(pc))))
   # ev <- (diag(qr.R(qr(pc))))^2
   ev
-}
-
-sparse.cov <- function(x, cor = FALSE) {
-  n <- nrow(x)
-  cMeans <- colMeans(x)
-  covmat <- (as.matrix(crossprod(x)) - n * tcrossprod(cMeans)) / (n - 1)
-
-  if (cor) {
-    sdvec <- sqrt(diag(covmat))
-    covmat <- covmat / crossprod(t(sdvec))
-  }
-
-  as.matrix(covmat)
 }
 
 project_cov <- function(cov_mat, direction) {

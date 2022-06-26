@@ -48,13 +48,13 @@ It also supports the variants of best subset selection like
 `group best subset selection`_ [#2gbes]_ and `nuisance best subset selection`_ [#3nbes]_. 
 Especially, the time complexity of (group) best subset selection for linear regression is certifiably polynomial [#1abess]_ [#2gbes]_.
 
-.. _linear regression: https://abess.readthedocs.io/en/latest/Tutorial/LinearRegression.html
-.. _(multi-class) classification: https://abess.readthedocs.io/en/latest/Tutorial/logi_and_multiclass.html
-.. _counting-response modeling: https://abess.readthedocs.io/en/latest/Tutorial/PoissonRegression.html
-.. _censored-response modeling: https://abess.readthedocs.io/en/latest/Tutorial/CoxRegression.html
-.. _multi-response modeling (a.k.a. multi-tasks learning): https://abess.readthedocs.io/en/latest/Tutorial/MultiTaskLearning.html
-.. _group best subset selection: https://abess.readthedocs.io/en/latest/Tutorial/advanced_features.html#Best-group-subset-selection
-.. _nuisance best subset selection: https://abess.readthedocs.io/en/latest/Tutorial/advanced_features.html#Nuisance-Regression
+.. _linear regression: https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_1_LinearRegression.html
+.. _(multi-class) classification: https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_2_LogisticRegression.html
+.. _counting-response modeling: https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_5_PossionGammaRegression.html
+.. _censored-response modeling: https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_4_CoxRegression.html#sphx-glr-auto-gallery-1-glm-plot-4-coxregression-py
+.. _multi-response modeling (a.k.a. multi-tasks learning): https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_3_MultiTaskLearning.html
+.. _group best subset selection: https://abess.readthedocs.io/en/latest/auto_gallery/3-advanced-features/plot_best_group.html
+.. _nuisance best subset selection: https://abess.readthedocs.io/en/latest/auto_gallery/3-advanced-features/plot_best_nuisance.html
 
 Quick start
 ============
@@ -69,10 +69,10 @@ Best subset selection for linear regression on a simulated dataset in Python:
 
 .. code-block:: python
 
-   from abess.linear import abessLm
+   from abess.linear import LinearRegression
    from abess.datasets import make_glm_data
    sim_dat = make_glm_data(n = 300, p = 1000, k = 10, family = "gaussian")
-   model = abessLm()
+   model = LinearRegression()
    model.fit(sim_dat.x, sim_dat.y)
 
 See more examples analyzed with Python in the tutorials; the notebooks are available `here <https://abess.readthedocs.io/en/latest/Tutorial/index.html>`_.

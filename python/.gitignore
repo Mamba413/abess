@@ -3,5 +3,6 @@ bess.egg-info/*
 test/*
 dist/*
 abess/__pycache__/*
-
+.eggs/*
 docs/build/*
+include/Spectra

@@ -18,7 +18,7 @@
 #' @return No return value, called for side effects.
 #'
 #' @note
-#' If \code{family = "mgaussian"} or \code{family = "multinomial"},
+#' If \code{family = "mgaussian"}, \code{family = "ordinal"} or \code{family = "multinomial"},
 #' a coefficient plot is produced for
 #' each dimension of multivariate response.
 #'
@@ -55,7 +55,7 @@ plot.abess <- function(x,
   } else {
     y_value <- x[["beta"]]
     if (type == "l2norm") {
-      if (class(y_value) == "list") {
+      if (inherits(y_value, "list")) {
         for (i in 1:length(y_value)) {
           y_value[[i]] <- Matrix::rowSums(y_value[[i]]^2)
         }

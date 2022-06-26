@@ -3,25 +3,34 @@ name: R Build
 on:
   push:
     paths:
-    - 'R-package/**'
-    - '.github/workflows/r_test.yml'
-    - '!R-package/.gitignore'
-    - '!R-package/cran-comments.md'
-    - '!R-package/pre-release.R'
-    - '!R-package/data-raw/**'
+      - 'R-package/**'
+      - 'src/**'
+      - '.github/workflows/r_test.yml'
+      - '!R-package/.gitignore'
+      - '!R-package/cran-comments.md'
+      - '!R-package/pre-release.R'
+      - '!R-package/data-raw/**'
+    branches:
+      - master
   pull_request:
     paths:
-    - 'R-package/**'
-    - '.github/workflows/r_test.yml'
-    - '!R-package/.gitignore'
-    - '!R-package/cran-comments.md'
-    - '!R-package/pre-release.R'
-    - '!R-package/data-raw/**'
+      - 'R-package/**'
+      - 'src/**'
+      - '.github/workflows/r_test.yml'
+      - '!R-package/.gitignore'
+      - '!R-package/cran-comments.md'
+      - '!R-package/pre-release.R'
+      - '!R-package/data-raw/**'
+    branches:
+      - master
 
 jobs:
   Install-Test:
     name: Installation test for R-package
-    runs-on: macOS-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v2
 
@@ -32,34 +41,39 @@ jobs:
       - name: Query dependencies
         run: |
           install.packages('remotes')
+          install.packages('devtools')
           saveRDS(remotes::dev_package_deps("R-package", dependencies = TRUE), ".github/depends.Rds", version = 2)
           writeLines(sprintf("R-%i.%i", getRversion()$major, getRversion()$minor), ".github/R-version")
         shell: Rscript {0}
-
-      - name: Cache R packages
-        uses: actions/cache@v2
-        with:
-          path: ${{ env.R_LIBS_USER }}
-          key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
-          restore-keys: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-
 
       - name: Install dependencies
         run: |
           remotes::install_deps("R-package", dependencies = TRUE)
         shell: Rscript {0}
 
-      - name: Install package
+      - name: Install package on MacOS
+        if: matrix.os == 'macos-latest'
         run: R CMD INSTALL R-package
+      - name: Install package on Ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get install -y libcurl4-openssl-dev
+          R CMD INSTALL R-package
+      - name: Install package on Windows
+        if: matrix.os == 'windows-latest'
+        working-directory: R-package
+        run: Rscript -e "system('R CMD INSTALL .')"  # we have tried 'run: R CMD INSTALL .' but it fails
 
       - name: Install dependencies for checking
         run: |
-          install.packages("testthat", type = "binary")
-          install.packages("knitr", type = "binary")
-          install.packages("rmarkdown", type = "binary")
-          install.packages("devtools", type = "binary")
+          install.packages("testthat")
+          install.packages("knitr")
+          install.packages("rmarkdown")
+          install.packages("devtools")
         shell: Rscript {0}
 
       - name: Check package
         run: |
-          devtools::check(pkg = "R-package/")
+          install.packages('devtools')
+          devtools::check(pkg = "R-package/", error_on = "error")
         shell: Rscript {0}

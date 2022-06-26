@@ -1,58 +1,111 @@
-name: Upload Python Package
+name: PyPI
 
 on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "python/**"
+      - "src/**"
+      - ".github/workflows/pypi.yml"
+      - "!python/.gitignore"
   release:
-    types: [created]
+    types:
+      - published
 
 jobs:
-  deploy_whl:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]
-        python-version: [3.5,3.6,3.7,3.8,3.9]
+  build_sdist:
+    name: Build SDist
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install setuptools wheel twine
-          pip install numpy sklearn scipy
-          choco install swig mingw git
-      - name: Build and publish
-        env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          cd python
-          python setup.py bdist_wheel
-          twine upload dist/*
 
-  deploy_source:
+      - name: Build SDist
+        run: |
+          pipx run build --sdist
+
+      - name: Check metadata
+        run: |
+          pipx run twine check dist/*
+          realpath dist/*
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: python/dist/*
+
+  build_wheels:
+    name: Wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python-version: [3.7]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
+
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v1
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install setuptools wheel twine
-          sudo apt-get install -y swig bash
-      - name: Build and publish
+          platforms: all
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
+        with:
+          package-dir: ./python ## trigger cibuildwheel in sub-directory
         env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          cd python
-          python setup.py sdist
-          twine upload dist/*
+          CIBW_SKIP: "pp* *-manylinux_aarch64 *-manylinux_ppc64le *-manylinux_s390x"
+          # configure cibuildwheel to build native archs ('auto'), and some emulated ones via: "CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x"
+          CIBW_ARCHS_LINUX: auto # currently, not support aarch64 ppc64le s390x because avx instruction is not supported on these platforms
+          CIBW_ARCHS_MACOS: x86_64 arm64 universal2 # the latest MacOS support the Rosetta
+
+      - name: Verify clean directory
+        run: git diff --exit-code
+        shell: bash
+
+      - name: Upload wheels to the project's github page
+        uses: actions/upload-artifact@v3
+        with:
+          path: wheelhouse/*.whl
+
+  #   upload_TestPyPI:
+  #     name: Upload alpha version to TestPyPI
+  #     needs: [build_wheels, build_sdist]
+  #     runs-on: ubuntu-latest
+
+  #     steps:
+  #       - uses: actions/download-artifact@v3
+  #         with:
+  #           name: artifact
+  #           path: dist
+
+  #       - uses: pypa/gh-action-pypi-publish@release/v1
+  #         with:
+  #           user: __token__
+  #           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+  #           repository_url: https://test.pypi.org/legacy/
+  #           verbose: true
+
+  upload_PyPI:
+    name: Upload to PyPI if release
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+
+    steps:
+      # - uses: actions/setup-python@v2
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}

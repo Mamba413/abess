@@ -102,6 +102,11 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
                 algorithm_list_uni_dense[i] = temp;
+            } else if (model_type == 9) {
+                abessOrdinal<Eigen::MatrixXd> *temp = new abessOrdinal<Eigen::MatrixXd>(
+                    algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
+                    is_warm_start, exchange_num, always_select, splicing_type, sub_search);
+                algorithm_list_mul_dense[i] = temp;
             }
         } else {
             if (model_type == 1) {
@@ -146,6 +151,11 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
                 algorithm_list_uni_sparse[i] = temp;
+            } else if (model_type == 9) {
+                abessOrdinal<Eigen::SparseMatrix<double>> *temp = new abessOrdinal<Eigen::SparseMatrix<double>>(
+                    algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
+                    is_warm_start, exchange_num, always_select, splicing_type, sub_search);
+                algorithm_list_mul_sparse[i] = temp;
             }
         }
     }
@@ -155,7 +165,7 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
 
     List out_result;
     if (!sparse_matrix) {
-        if (y.cols() == 1) {
+        if (y.cols() == 1 && model_type != 5 && model_type != 6) {
             Eigen::VectorXd y_vec = y.col(0).eval();
 
             out_result = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::MatrixXd>(
@@ -185,7 +195,7 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
         }
         sparse_x.makeCompressed();
 
-        if (y.cols() == 1) {
+        if (y.cols() == 1 && model_type != 5 && model_type != 6) {
             Eigen::VectorXd y_vec = y.col(0).eval();
 
             out_result = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::SparseMatrix<double>>(
@@ -235,7 +245,6 @@ List abessPCA_API(Eigen::MatrixXd x, int n, int p, int normalize_type, Eigen::Ve
     int primary_model_fit_max_iter = 1;
     double primary_model_fit_epsilon = 1e-3;
     int pca_n = -1;
-    screening_size = -1;
     sub_search = 0;
     if (!sparse_matrix && n != x.rows()) {
         pca_n = n;
@@ -470,13 +479,17 @@ List abessRPCA_API(Eigen::MatrixXd x, int n, int p, int max_iter, int exchange_n
 
     for (int i = 0; i < algorithm_list_size; i++) {
         if (!sparse_matrix) {
-            algorithm_list_uni_dense[i] = new abessRPCA<Eigen::MatrixXd>(
+            abessRPCA<Eigen::MatrixXd> *temp = new abessRPCA<Eigen::MatrixXd>(
                 algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                 is_warm_start, exchange_num, always_select, splicing_type, sub_search);
+            temp->r = lambda_seq(0);
+            algorithm_list_uni_dense[i] = temp;
         } else {
-            algorithm_list_uni_sparse[i] = new abessRPCA<Eigen::SparseMatrix<double>>(
+            abessRPCA<Eigen::SparseMatrix<double>> *temp = new abessRPCA<Eigen::SparseMatrix<double>>(
                 algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                 is_warm_start, exchange_num, always_select, splicing_type, sub_search);
+            temp->r = lambda_seq(0);
+            algorithm_list_uni_sparse[i] = temp;
         }
     }
 

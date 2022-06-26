@@ -9,6 +9,7 @@
 [![R docs](https://github.com/abess-team/abess/actions/workflows/r_website.yml/badge.svg)](https://abess-team.github.io/abess/)
 [![cran](https://img.shields.io/cran/v/abess?logo=R)](https://cran.r-project.org/package=abess)
 [![pypi](https://badge.fury.io/py/abess.svg)](https://badge.fury.io/py/abess)
+[![Conda version](https://img.shields.io/conda/vn/conda-forge/abess.svg)](https://anaconda.org/conda-forge/abess)
 [![pyversions](https://img.shields.io/pypi/pyversions/abess)](https://img.shields.io/pypi/pyversions/abess)
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/3f6e60a3a3e44699a033159633981b76)](https://www.codacy.com/gh/abess-team/abess/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=abess-team/abess&amp;utm_campaign=Badge_Grade)
@@ -23,14 +24,14 @@ For example, clinicians want to know whether a patient is healthy or not based o
 
 This library implements a generic algorithm framework to find the optimal solution in an extremely fast way.
 This framework now supports the detection of best subset under: 
-[linear regression](https://abess.readthedocs.io/en/latest/Tutorial/LinearRegression.html),
-[classification (binary or multi-class)](https://abess.readthedocs.io/en/latest/Tutorial/logi_and_multiclass.html),
-[counting-response modeling](https://abess.readthedocs.io/en/latest/Tutorial/PoissonRegression.html),
-[censored-response modeling](https://abess.readthedocs.io/en/latest/Tutorial/CoxRegression.html),
-[multi-response modeling (multi-tasks learning)](https://abess.readthedocs.io/en/latest/Tutorial/MultiTaskLearning.html), etc.
+[linear regression](https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_1_LinearRegression.html),
+[classification (binary or multi-class)](https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_2_LogisticRegression.html),
+[counting-response modeling](https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_5_PossionGammaRegression.html),
+[censored-response modeling](https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_4_CoxRegression.html#sphx-glr-auto-gallery-1-glm-plot-4-coxregression-py),
+[multi-response modeling (multi-tasks learning)](https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_3_MultiTaskLearning.html), etc.
 It also supports the variants of best subset selection like 
-[group best subset selection](https://abess.readthedocs.io/en/latest/Tutorial/advanced_features.html#Best-group-subset-selection),
-[nuisance penalized regression](https://abess.readthedocs.io/en/latest/Tutorial/advanced_features.html#Nuisance-Regression),
+[group best subset selection](https://abess.readthedocs.io/en/latest/auto_gallery/3-advanced-features/plot_best_group.html),
+[nuisance penalized regression](https://abess.readthedocs.io/en/latest/auto_gallery/3-advanced-features/plot_best_nuisance.html),
 Especially, the time complexity of (group) best subset selection for linear regression is certifiably polynomial.
 
 ## Quick start
@@ -39,24 +40,31 @@ The `abess` software has both Python and R's interfaces. Here a quick start will
 
 ### Python package
 
-Install the stable version of Python-package from [Pypi](https://pypi.org/project/abess/) with:
+Install the stable version of Python-package from [Pypi](https://pypi.org/project/abess/):
 
 ```shell
 $ pip install abess
 ```
 
+or [conda-forge](https://anaconda.org/conda-forge/abess):
+
+```shell
+$ conda install abess
+```
+
+
 Best subset selection for linear regression on a simulated dataset in Python:    
 
 ```python
-from abess.linear import abessLm
+from abess.linear import LinearRegression
 from abess.datasets import make_glm_data
 sim_dat = make_glm_data(n = 300, p = 1000, k = 10, family = "gaussian")
-model = abessLm()
+model = LinearRegression()
 model.fit(sim_dat.x, sim_dat.y)
 ```
 
 
-See more examples analyzed with Python in the [Python tutorials](https://abess.readthedocs.io/en/latest/Tutorial/index.html).
+See more examples analyzed with Python in the [Python tutorials](https://abess.readthedocs.io/en/latest/auto_gallery/index.html).
 
 
 ### R package
@@ -80,7 +88,7 @@ See more examples analyzed with R in the [R tutorials](https://abess-team.github
 
 ## Runtime Performance
 
-To show the power of abess in computation, we assess its timings of the CPU execution (seconds) on synthetic datasets, and compare to state-of-the-art variable selection methods. The variable selection and estimation results are deferred to [Python performance](https://abess.readthedocs.io/en/latest/Tutorial/power_of_abess.html) and [R performance](https://abess-team.github.io/abess/articles/v11-power-of-abess.html). All computations are conducted on a Ubuntu platform with Intel(R) Core(TM) i9-9940X CPU @ 3.30GHz and 48 RAM.
+To show the power of abess in computation, we assess its timings of the CPU execution (seconds) on synthetic datasets, and compare to state-of-the-art variable selection methods. The variable selection and estimation results are deferred to [Python performance](https://abess.readthedocs.io/en/latest/auto_gallery/1-glm/plot_a1_power_of_abess.html) and [R performance](https://abess-team.github.io/abess/articles/v11-power-of-abess.html). All computations are conducted on a Ubuntu platform with Intel(R) Core(TM) i9-9940X CPU @ 3.30GHz and 48 RAM.
 
 ### Python package   
 
@@ -120,14 +128,15 @@ $ Rscript abess/docs/simulation/R/timings.R
 
 New features:
 
-- Support user-specified cross validation division.
-- Support user-specified initial active set.
-- Support flexible support size for sequentially best subset selection for principal component analysis (PCA). 
+- `abess` Python package can be installed via `conda`. 
+- `abess` R package is is highlighted as one of the core packages in [CRAN Task View: Machine Learning & Statistical Learning](https://cran.r-project.org/web/views/MachineLearning.html).
+- On Windows, the recommended C++ compiler shifts from Mingw to Microsoft Visual Studio.
+- Support predicting survival function in `abess.linear.CoxPHSurvivalAnalysis`.
+- Rename estimators in Python. Please check [here](https://abess.readthedocs.io/en/latest/Python-package/index.html).
 
 New best subset selection tasks: 
 
-- Generalized linear model when the link function is gamma distribution.
-- Robust principal component analysis (RPCA).
+- Generalized linear model for ordinal regression (a.k.a rank learning in some machine learning literature).
 
 ## Citation         
 
