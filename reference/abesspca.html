@@ -398,10 +398,10 @@ because the meaning of these parameters are very similar.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> abesspca(x = rob_cov, type = "gram")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   PC support.size       ev       pev</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1            1 6450.949 0.9573173</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2  1            2 6504.400 0.9652494</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3  1            3 6553.977 0.9726067</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4  1            4 6564.217 0.9741262</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1            1 5556.143 0.9542247</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  1            2 5589.252 0.9599110</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  1            3 5610.186 0.9635062</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  1            4 5622.350 0.9655954</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">## K-component principal component analysis</span></span></span>
 <span class="r-in"><span><span class="va">pca_fit</span> <span class="op">&lt;-</span> <span class="fu">abesspca</span><span class="op">(</span><span class="va">USArrests</span>,</span></span>
@@ -436,9 +436,11 @@ because the meaning of these parameters are very similar.</p>
 <span class="r-in"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fl">50</span></span></span>
 <span class="r-in"><span><span class="va">support_size</span> <span class="op">&lt;-</span> <span class="fl">3</span></span></span>
 <span class="r-in"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu"><a href="generate.spc.matrix.html">generate.spc.matrix</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">p</span>, <span class="va">support_size</span>, snr <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in methods::as(sparse.loading, "dMatrix"):</span> no method or default for coercing “matrix” to “dMatrix”</span>
 <span class="r-in"><span><span class="va">spca_fit</span> <span class="op">&lt;-</span> <span class="fu">abesspca</span><span class="op">(</span><span class="va">dataset</span><span class="op">[[</span><span class="st">"x"</span><span class="op">]</span><span class="op">]</span>, tune.type <span class="op">=</span> <span class="st">"cv"</span>, nfolds <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in abesspca(dataset[["x"]], tune.type = "cv", nfolds = 5):</span> object 'dataset' not found</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">spca_fit</span>, type <span class="op">=</span> <span class="st">"tune"</span><span class="op">)</span></span></span>
-<span class="r-plt img"><img src="abesspca-5.png" alt="" width="700" height="433"></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in plot(spca_fit, type = "tune"):</span> object 'spca_fit' not found</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
