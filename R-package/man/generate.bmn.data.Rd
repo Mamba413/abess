@@ -30,9 +30,6 @@ If it is supplied, \code{support.size} would be omitted.}
 
 \item{alpha}{}
 }
-\value{
-
-}
 \description{
 Generate a dataset from binary markov network
 }
