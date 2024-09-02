@@ -4,7 +4,8 @@
 .. |logopic| image:: https://github.com/abess-team/abess/raw/master/docs/image/icon_long.png    
 
 
-|Python build status| |R build status| |codecov| |docs| |cran| |pypi| |pyversions| |License| |Codacy| |CodeFactor|
+|Python build status| |R build status| |codecov| |docs| |cran| |pypi| |conda-forge| |pyversions| |License| |Codacy|
+|CodeFactor| |Platform| |Downloads|
 
 .. |Codacy| image:: https://app.codacy.com/project/badge/Grade/3f6e60a3a3e44699a033159633981b76 
    :target: https://www.codacy.com/gh/abess-team/abess/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=abess-team/abess&amp;utm_campaign=Badge_Grade
@@ -23,13 +24,19 @@
    :target: https://abess-team.github.io/abess/
 .. |cran| image:: https://img.shields.io/cran/v/abess?logo=R
    :target: https://cran.r-project.org/package=abess
-.. |pypi| image:: https://badge.fury.io/py/abess.svg
-   :target: https://badge.fury.io/py/abess
+.. |pypi| image:: https://img.shields.io/pypi/v/abess?logo=Pypi
+   :target: https://pypi.org/project/abess
+.. |conda-forge| image:: https://img.shields.io/conda/vn/conda-forge/abess.svg?logo=condaforge
+   :target: https://anaconda.org/conda-forge/abess
 .. |pyversions| image:: https://img.shields.io/pypi/pyversions/abess
 .. |License| image:: https://img.shields.io/badge/License-GPL%20v3-blue.svg 
    :target: http://www.gnu.org/licenses/gpl-3.0
 .. |CodeFactor| image:: https://www.codefactor.io/repository/github/abess-team/abess/badge 
    :target: https://www.codefactor.io/repository/github/abess-team/abess
+.. |Platform| image:: https://anaconda.org/conda-forge/abess/badges/platforms.svg
+   :target: https://anaconda.org/conda-forge/abess
+.. |Downloads| image:: https://pepy.tech/badge/abess
+   :target: https://pepy.tech/project/abess
 
 Overview
 ============
@@ -120,17 +127,17 @@ Citation
 
 If you use `abess` or reference our tutorials in a presentation or publication, we would appreciate citations of our library [#5abesslib]_.
 
-| Jin Zhu, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, Junxian Zhu, Xueqin Wang (2021). “abess: A Fast Best Subset Selection Library in Python and R.” arXiv:2110.09697.
+| Jin Zhu, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, Junxian Zhu, Xueqin Wang (2022). “abess: A Fast Best Subset Selection Library in Python and R.” Journal of Machine Learning Research (Accepted).
 
 The corresponding BibteX entry:
 
 .. code-block:: shell
 
-   @article{zhu-abess-arxiv,
+   @article{zhu2022abess,
       author  = {Jin Zhu and Liyuan Hu and Junhao Huang and Kangkang Jiang and Yanhang Zhang and Shiyun Lin and Junxian Zhu and Xueqin Wang},
       title   = {abess: A Fast Best Subset Selection Library in Python and R},
-      journal = {arXiv:2110.09697},
-      year    = {2021},
+      journal = {Journal of Machine Learning Research (Accepted)},
+      year    = {2022}
    }
 
 References
@@ -140,8 +147,8 @@ References
 
 .. [#4sksurv] Pölsterl, S (2020). scikit-survival: A Library for Time-to-Event Analysis Built on Top of scikit-learn. J. Mach. Learn. Res., 21(212), 1-6.
 
-.. [#2gbes] Yanhang Zhang, Junxian Zhu, Jin Zhu, and Xueqin Wang (2021). Certifiably Polynomial Algorithm for Best Group Subset Selection. arXiv preprint arXiv:2104.12576.
+.. [#2gbes] Yanhang Zhang, Junxian Zhu, Jin Zhu, and Xueqin Wang (2022). A Splicing Approach to Best Subset of Groups Selection. INFORMS Journal on Computing (Accepted). doi:10.1287/ijoc.2022.1241.
 
 .. [#3nbes] Qiang Sun and Heping Zhang (2020). Targeted Inference Involving High-Dimensional Data Using Nuisance Penalized Regression, Journal of the American Statistical Association, DOI: 10.1080/01621459.2020.1737079.
     
-.. [#5abesslib] Jin Zhu, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, Junxian Zhu, and Xueqin Wang (2021). abess: A Fast Best Subset Selection Library in Python and R. arXiv preprint arXiv:2110.09697.
+.. [#5abesslib] Zhu Jin, Xueqin Wang, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, and Junxian Zhu. "abess: A Fast Best-Subset Selection Library in Python and R." Journal of Machine Learning Research 23, no. 202 (2022): 1-7.

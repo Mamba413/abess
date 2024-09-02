@@ -1,3 +1,23 @@
+# abess 0.4.8
+* Support no-intercept GLM model by param 'fit.intercept'.
+* Allow to restrict the range of estimation for beta by param 'beta.high' and 'beta.low'.
+* Add cite message when load 'abess'.
+* Fix a bug when support.size is 0.
+
+# abess 0.4.7
+
+* Allow the other criterion for model selection: AUC for (multinomial) logistic regression such as the area under the curve (AUC). 
+* Simplify the C++ code structure. 
+* Fix note "Specified C++11: please update to current default of C++17" in CRAN.
+
+
+# abess 0.4.6
+
+* Adapt to the API change of the `Matrix` package.
+* Change the package structure such that the API functions can reuse the 
+utility function. It facilitates the testing for package.
+* Update citation information.
+
 # abess 0.4.5
 
 * Support generalized linear model for ordinal response, also named as rank learning in machine learning community. 

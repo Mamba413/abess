@@ -21,10 +21,10 @@ in linear regression with both simulated data and real data.
 # Next, we present an example to show the ``abess`` package can get an optimal estimation.
 #
 # Toward optimality: adaptive best-subset selection
-# ^^^^^^^^^^^^^^^^^^^^^^
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # 
 # Synthetic dataset
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~
 #
 # We generate a design matrix :math:`X` containing :math:`n = 300` observations and each observation has :math:`p = 1000` predictors.
 # The response variable :math:`y` is linearly related to the first, second, and fifth predictors in :math:`X`:
@@ -163,8 +163,8 @@ print("non-zero:\n", data2.columns[ind])
 print("coef:\n", model.coef_)
 
 # %%
-# Automatically, variables `Hits`, `CRBI`, `PutOuts`, `League\_N` are
-# chosen in the model (the chosen sparsity level is 4).
+# Automatically, variables `Hits`, `CHits`, `CHmRun`, `PutOuts`, `League_N` are
+# chosen in the model (the chosen sparsity level is 5).
 
 ###############################################################################
 # More on the results
@@ -178,7 +178,7 @@ for s in range(20):
     model = LinearRegression(support_size=s)
     model.fit(x, y)
     coef[s, :] = model.coef_
-    ic[s] = model.ic_
+    ic[s] = model.eval_loss_
 
 for i in range(19):
     plt.plot(coef[:, i], label=i)
@@ -199,8 +199,8 @@ plt.title('Model selection via EBIC')
 plt.show()
 
 # %%
-# In EBIC criterion, a subset with the support size 3 has the lowest value,
-# so the process adaptively chooses 3 variables.
+# In EBIC criterion, a subset with the support size 4 has the lowest value,
+# so the process adaptively chooses 4 variables.
 # Note that under other information criteria, the result may be different.
 
 ###############################################################################

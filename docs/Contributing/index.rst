@@ -1,6 +1,6 @@
-######################
+############
 Contributing
-######################
+############
 
 Contributions are welcome! No matter your current skills, it's possible
 to make valuable contribution to the ``abess``.
@@ -10,5 +10,6 @@ to make valuable contribution to the ``abess``.
     ContributeDocs
     ContributePyR
     DevelopNewFeatures
+    DevelopNewFeaturesGLM
     AfterCodeDeveloping
     AppendixArchitecture

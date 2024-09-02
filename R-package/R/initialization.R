@@ -43,10 +43,13 @@ Initialization_GLM <- function(c.max,
                                tune.path,
                                max.newton.iter,
                                lambda,
+                               beta.low,
+                               beta.high,
                                family,
                                screening.num,
                                gs.range,
                                early.stop,
+                               fit.intercept,
                                weight,
                                cov.update,
                                normalize,
@@ -72,10 +75,13 @@ Initialization_GLM <- function(c.max,
   para$tune.path <- tune.path
   para$max.newton.iter <- max.newton.iter
   para$lambda <- lambda
+  para$beta.low <- beta.low
+  para$beta.high <- beta.high
   para$family <- family
   para$screening.num <- screening.num
   para$gs.range <- gs.range
   para$early.stop <- early.stop
+  para$fit.intercept <- fit.intercept
   para$weight <- weight
   para$cov.update <- cov.update
   para$normalize <- normalize
@@ -268,6 +274,24 @@ lambda.rpca <- lambda_private
 
 lambda.glm <- lambda_private
 
+beta_range <- function(para)
+  UseMethod("beta_range")
+
+beta_range_private <- function(para) {
+  stopifnot(length(para$beta.low) == 1)
+  stopifnot(length(para$beta.high) == 1)
+  stopifnot(!anyNA(para$beta.low))
+  stopifnot(!anyNA(para$beta.high))
+  stopifnot(para$beta.low < para$beta.high)
+  
+  para$beta_low <- as.double(para$beta.low)
+  para$beta_high <- as.double(para$beta.high)
+  
+  para
+}
+
+beta_range.glm <- beta_range_private
+
 
 warm_start <- function(para)
   UseMethod("warm_start")
@@ -321,7 +345,10 @@ x_matrix_info.Initialization <- function(para, data) {
   if (is.null(para$vn)) {
     para$vn <- paste0("x", 1:para$nvars)
   }
-  
+  # If the colnames are duplicated, a error should be raised
+  if (length(unique(para$vn)) != length(para$vn)) {
+    stop("The colnames of x are duplicated!")
+  }
   para
 }
 
@@ -453,6 +480,10 @@ y_matrix.glm <- function(para, data) {
     para$y_vn <- colnames(data$y)
     if (is.null(para$y_vn)) {
       para$y_vn <- colnames("y", 1:dim(data$y)[2])
+    }
+    # If the colnames are duplicated, a error should be raised
+    if (length(unique(para$y_vn)) != length(para$y_vn)) {
+      stop("The colnames of y are duplicated!")
     }
   }
   data$y <- as.matrix(data$y)
@@ -973,6 +1004,15 @@ early_stop.glm <- function(para) {
   para
 }
 
+fit_intercept <- function(para)
+  UseMethod("fit_intercept")
+
+fit_intercept.glm <- function(para) {
+  stopifnot(is.logical(para$fit.intercept))
+  para$fit_intercept <- para$fit.intercept
+  
+  para
+}
 
 model_type <- function(para)
   UseMethod("model_type")
@@ -1122,8 +1162,10 @@ initializate <- function(para, data)
 
 initializate.glm <- function(para, data) {
   para <- lambda(para)
+  para <- beta_range(para)
   para <- number_of_thread(para)
   para <- early_stop(para)
+  para <- fit_intercept(para)
   para <- warm_start(para)
   para <- splicing_type(para)
   para <- max_splicing_iter(para)

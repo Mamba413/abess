@@ -1,21 +1,14 @@
 import warnings
 import numpy as np
-from sklearn.metrics import r2_score, d2_tweedie_score, ndcg_score
-from .metrics import concordance_index_censored
+from sklearn.metrics import r2_score, accuracy_score, ndcg_score
 from .bess_base import bess_base
-from .utilities import new_data_check
-from .functions import (BreslowEstimator)
+from .utilities import fix_docs, new_data_check
+from .functions import (BreslowEstimator, concordance_index_censored)
 # from .nonparametric import _compute_counts
-
-
-def fix_docs(cls):
-    # This function is to inherit the docstring from base class
-    # and avoid unnecessary duplications on description.
-    index = cls.__doc__.find("Examples\n    --------\n")
-    if index != -1:
-        cls.__doc__ = cls.__doc__[:index] + \
-            cls.__bases__[0].__doc__ + cls.__doc__[index:]
-    return cls
+try:
+    from sklearn.metrics import d2_tweedie_score
+except ImportError:
+    from .functions import d2_tweedie_score
 
 
 @ fix_docs
@@ -35,6 +28,8 @@ class LogisticRegression(bess_base):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import LogisticRegression
@@ -44,52 +39,52 @@ class LogisticRegression(bess_base):
     >>> data = make_glm_data(n = 100, p = 50, k = 10, family = 'binomial')
     >>> model = LogisticRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    LogisticRegression(always_select=[], support_size=10)
-    >>> model.predict(data.x)[1:10]
-    array([0., 0., 1., 1., 0., 1., 0., 1., 0.])
+    LogisticRegression(support_size=10)
+    >>> model.predict(data.x)[:10]
+    array([0, 1, 0, 1, 1, 1, 0, 0, 0, 1])
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = LogisticRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    LogisticRegression(always_select=[])
-    >>> model.predict(data.x)[1:10]
-    array([0., 1., 0., 0., 1., 0., 1., 0., 1., 1.])
+    LogisticRegression()
+    >>> model.predict(data.x)[:10]
+    array([0, 1, 0, 1, 1, 1, 0, 0, 0, 1])
     >>>
     >>> # path_type="gs"
     >>> model = LogisticRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    LogisticRegression(always_select=[], path_type='gs')
-    >>> model.predict(data.x)[1:10]
-    array([0., 0., 0., 1., 1., 0., 1., 0., 1., 0.])
+    LogisticRegression(path_type='gs')
+    >>> model.predict(data.x)[:10]
+    array([0, 1, 0, 1, 1, 1, 0, 0, 0, 1])
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None, alpha=None,
-                 s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
-                 always_select=None,
-                 primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
-                 approximate_Newton=False,
-                 thread=1,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128,
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 fit_intercept=True,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="roc_auc",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
+                 primary_model_fit_max_iter=10,
+                 primary_model_fit_epsilon=1e-8,
+                 approximate_Newton=False
                  ):
         super().__init__(
             algorithm_type="abess", model_type="Logistic", normalize_type=2,
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
-            alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            alpha=alpha, fit_intercept=fit_intercept, s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             approximate_Newton=approximate_Newton,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             _estimator_type='classifier'
@@ -145,7 +140,7 @@ class LogisticRegression(bess_base):
             y[xbeta > 0] = self.classes_[1]
         return y
 
-    def score(self, X, y):
+    def score(self, X, y, sample_weight=None):
         r"""
         Give new data, and it returns the prediction accuracy.
 
@@ -155,13 +150,17 @@ class LogisticRegression(bess_base):
             Sample matrix.
         y : array-like, shape(n_samples,)
             Real class labels (0 or 1) for X.
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
 
         Returns
         -------
         score : float
             The mean prediction accuracy on the given data.
         """
-        X, y = new_data_check(self, X, y)
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
 
         # intercept_ = np.ones(X.shape[0]) * self.intercept_
         # xbeta = X.dot(self.coef_) + intercept_
@@ -172,7 +171,7 @@ class LogisticRegression(bess_base):
         #         (np.ones(X.shape[0]) - y) *
         #         np.log(np.ones(X.shape[0]) - pr)).sum()
         y_pred = self.predict(X)
-        return (y == y_pred).mean()
+        return accuracy_score(y, y_pred, sample_weight=sample_weight)
 
 
 @ fix_docs
@@ -192,6 +191,8 @@ class LinearRegression(bess_base):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import LinearRegression
@@ -201,36 +202,36 @@ class LinearRegression(bess_base):
     >>> data = make_glm_data(n = 100, p = 50, k = 10, family = 'gaussian')
     >>> model = LinearRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    LinearRegression(always_select=[], support_size=10)
-    >>> model.predict(data.x)
-    array([   1.42163813,  -43.23929886, -139.79509191,  141.45138403])
+    LinearRegression(support_size=10)
+    >>> model.predict(data.x)[:4]
+    array([ -91.02169383,  100.7302593 , -226.99517096,    9.47389912])
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = LinearRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    LinearRegression(always_select=[])
-    >>> model.predict(data.x)[1:4]
-    array([   1.42163813,  -43.23929886, -139.79509191,  141.45138403])
+    LinearRegression()
+    >>> model.predict(data.x)[:4]
+    array([ -91.02169383,  100.7302593 , -226.99517096,    9.47389912])
     >>>
     >>> # path_type="gs"
     >>> model = LinearRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    LinearRegression(always_select=[], path_type='gs')
-    >>> model.predict(data.x)[1:4]
-    array([   1.42163813,  -43.23929886, -139.79509191,  141.45138403])
+    LinearRegression(path_type='gs')
+    >>> model.predict(data.x)[:4]
+    array([ -91.02169383,  100.7302593 , -226.99517096,    9.47389912])
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None,
-                 alpha=None, s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
-                 always_select=None,
-                 thread=1, covariance_update=False,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128,
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 fit_intercept=True,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
+                 covariance_update=False,
                  # primary_model_fit_max_iter=10,
                  # primary_model_fit_epsilon=1e-8,
                  # approximate_Newton=False
@@ -239,12 +240,12 @@ class LinearRegression(bess_base):
             algorithm_type="abess", model_type="Lm", normalize_type=1,
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
-            alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            alpha=alpha, fit_intercept=fit_intercept, s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             thread=thread, covariance_update=covariance_update,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             _estimator_type='regressor'
@@ -272,7 +273,7 @@ class LinearRegression(bess_base):
         intercept_ = np.ones(X.shape[0]) * self.intercept_
         return X.dot(self.coef_) + intercept_
 
-    def score(self, X, y):
+    def score(self, X, y, sample_weight=None):
         r"""
         Give data, and it returns the coefficient of determination.
 
@@ -282,16 +283,19 @@ class LinearRegression(bess_base):
             Sample matrix.
         y : array-like, shape(n_samples, p_features)
             Real response for given X.
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
 
         Returns
         -------
         score : float
             :math:`R^2` score.
         """
-        X, y = new_data_check(self, X, y)
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
         y_pred = self.predict(X)
-        # return ((y - y_pred) * (y - y_pred)).sum()
-        return r2_score(y, y_pred)
+        return r2_score(y, y_pred, sample_weight=sample_weight)
 
 
 @ fix_docs
@@ -312,6 +316,8 @@ class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import CoxPHSurvivalAnalysis
@@ -319,55 +325,54 @@ class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
     >>> import numpy as np
     >>> np.random.seed(12345)
     >>> data = make_glm_data(n = 100, p = 50, k = 10, family = 'cox')
-    censoring rate:0.65
+    censoring rate:0.6
     >>> model = CoxPHSurvivalAnalysis(support_size = 10)
     >>> model.fit(data.x, data.y)
-    CoxPHSurvivalAnalysis(always_select=[], support_size=10)
-    >>> model.predict(data.x)[1:4]
-    array([1.08176927e+00, 6.37029117e-04, 3.64112556e-06, 4.09523406e+05])
+    CoxPHSurvivalAnalysis(support_size=10)
+    >>> model.predict(data.x)[:4]
+    array([1.14440127e-01, 2.03621826e+04, 3.06214682e-08, 5.01932889e+02])
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = CoxPHSurvivalAnalysis(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    CoxPHSurvivalAnalysis(always_select=[], support_size=10)
-    >>> model.predict(data.x)[1:4]
-    array([1.08176927e+00, 6.37029117e-04, 3.64112556e-06, 4.09523406e+05])
+    CoxPHSurvivalAnalysis()
+    >>> model.predict(data.x)[:4]
+    array([1.36126061e-01, 1.38312962e+04, 5.95470917e-08, 3.87857074e+02])
     >>>
     >>> # path_type="gs"
     >>> model = CoxPHSurvivalAnalysis(path_type="gs")
     >>> model.fit(data.x, data.y)
-    CoxPHSurvivalAnalysis(always_select=[], path_type='gs')
-    >>> model.predict(data.x)[1:4]
-    array([1.07629689e+00, 6.47263126e-04, 4.30660826e-06, 3.66389638e+05])
+    CoxPHSurvivalAnalysis(path_type='gs')
+    >>> model.predict(data.x)[:4]
+    array([1.48661058e-01, 1.19376056e+04, 5.80413711e-08, 4.73270508e+02])
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None,
-                 alpha=None, s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
-                 always_select=None,
-                 primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
-                 approximate_Newton=False,
-                 thread=1,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
+                 primary_model_fit_max_iter=10,
+                 primary_model_fit_epsilon=1e-8,
+                 approximate_Newton=False
                  ):
         super().__init__(
             algorithm_type="abess", model_type="Cox", normalize_type=3,
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             approximate_Newton=approximate_Newton,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             baseline_model=BreslowEstimator()
@@ -398,7 +403,7 @@ class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
 
         return np.exp(X.dot(self.coef_))
 
-    def score(self, X, y):
+    def score(self, X, y, sample_weight=None):
         r"""
         Give data, and it returns C-index.
 
@@ -408,17 +413,22 @@ class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
             Sample matrix.
         y : array-like, shape(n_samples, p_features)
             Real response for given X.
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
 
         Returns
         -------
         score : float
             C-index.
         """
-        X, y = new_data_check(self, X, y)
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
         risk_score = X.dot(self.coef_)
         y = np.array(y)
         result = concordance_index_censored(
-            np.array(y[:, 1], np.bool_), y[:, 0], risk_score)
+            np.array(y[:, 1], np.bool_), y[:, 0],
+            risk_score, sample_weight=sample_weight)
         return result[0]
 
     def predict_survival_function(self, X):
@@ -464,6 +474,8 @@ class PoissonRegression(bess_base):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import PoissonRegression
@@ -473,50 +485,53 @@ class PoissonRegression(bess_base):
     >>> data = make_glm_data(n = 100, p = 50, k = 10, family = 'poisson')
     >>> model = PoissonRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    PoissonRegression(always_select=[], support_size=10)
-    >>> model.predict(data.x)[1:4]
-    array([1.06757251e+00, 8.92711312e-01, 5.64414159e-01, 1.35820866e+00])
+    PoissonRegression(support_size=10)
+    >>> model.predict(data.x)[:4]
+    array([0.51647246, 1.72152904, 0.25906485, 1.11715123])
+
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = PoissonRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    PoissonRegression(always_select=[])
-    >>> model.predict(data.x)[1:4]
-    array([1.03373139e+00, 4.32229653e-01, 4.48811009e-01, 2.27170366e+00])
+    PoissonRegression()
+    >>> model.predict(data.x)[:4]
+    array([0.41189011, 1.34910167, 0.28326399, 1.05768798])
     >>>
     >>> # path_type="gs"
     >>> model = PoissonRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    PoissonRegression(always_select=[], path_type='gs')
-    >>> model.predict(data.x)[1:4]
-    array([1.03373139e+00, 4.32229653e-01, 4.48811009e-01, 2.27170366e+00])
+    PoissonRegression(path_type='gs')
+    >>> model.predict(data.x)[:4]
+    array([0.3824694 , 2.72926425, 0.14566451, 1.41221177])
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None,
-                 alpha=None, s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
-                 always_select=None,
-                 primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
-                 thread=1,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 fit_intercept=True,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
+                 primary_model_fit_max_iter=10,
+                 primary_model_fit_epsilon=1e-8,
+                 approximate_Newton=False
                  ):
         super().__init__(
             algorithm_type="abess", model_type="Poisson", normalize_type=2,
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
-            alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            alpha=alpha, fit_intercept=fit_intercept, s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            approximate_Newton=approximate_Newton,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             _estimator_type='regressor'
@@ -545,7 +560,7 @@ class PoissonRegression(bess_base):
         xbeta_exp = np.exp(X.dot(self.coef_) + intercept_)
         return xbeta_exp
 
-    def score(self, X, y):
+    def score(self, X, y, sample_weight=None):
         r"""
         Give new data, and it returns the :math:`D^2` score.
 
@@ -555,20 +570,25 @@ class PoissonRegression(bess_base):
             Sample matrix.
         y : array-like, shape(n_samples, p_features)
             Real response for given X.
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
 
         Returns
         -------
         score : float
             :math:`D^2` score.
         """
-        X, y = new_data_check(self, X, y)
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
 
         # intercept_ = np.ones(X.shape[0]) * self.intercept_
         # eta = X.dot(self.coef_) + intercept_
         # exp_eta = np.exp(eta)
         # return (y * eta - exp_eta).sum()
         y_pred = self.predict(X)
-        return d2_tweedie_score(y, y_pred, power=1)
+        return d2_tweedie_score(y, y_pred, power=1,
+                                sample_weight=sample_weight)
 
 
 @ fix_docs
@@ -588,6 +608,8 @@ class MultiTaskRegression(bess_base):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import MultiTaskRegression
@@ -598,60 +620,65 @@ class MultiTaskRegression(bess_base):
     >>>     n = 100, p = 50, k = 10, M = 3, family = 'multigaussian')
     >>> model = MultiTaskRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    MultiTaskRegression(always_select=[], support_size=10)
-    >>> model.predict(data.x)[1:5, ]
-    array([[1., 0., 0.],
-       [0., 0., 1.],
-       [1., 0., 0.],
-       [1., 0., 0.],
-       [0., 0., 1.]])
+    MultiTaskRegression(support_size=10)
+    >>>
+    >>> model.predict(data.x)[:5, ]
+    array([[ 14.8632471 ,  -3.50042308,  11.88954251],
+        [  9.50857154,  -3.63397256,  17.24496971],
+        [ 27.74599919, -28.29785667, -13.26021431],
+        [ 13.58562727,  -1.02215199,   5.06593256],
+        [-29.18519221,  18.64600541,  15.44881672]])
+
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = MultiTaskRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    MultiTaskRegression(always_select=[])
-    >>> model.predict(data.x)[1:5, ]
-    array([[1., 0., 0.],
-       [0., 0., 1.],
-       [1., 0., 0.],
-       [1., 0., 0.],
-       [0., 0., 1.]])
+    MultiTaskRegression()
+    >>> model.predict(data.x)[:5, ]
+    array([[ 14.67257826,  -4.2882759 ,  12.050597  ],
+        [  8.99687125,  -5.74834275,  17.67719359],
+        [ 27.60141854, -28.89527087, -13.13808967],
+        [ 13.63623637,  -0.81303274,   5.02318398],
+        [-28.48945127,  21.52084036,  14.86113707]])
     >>>
     >>> # path_type="gs"
     >>> model = MultiTaskRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    MultiTaskRegression(always_select=[], path_type='gs')
-    >>> model.predict(data.x)[1:5, ]
-    array([[1., 0., 0.],
-       [0., 0., 1.],
-       [1., 0., 0.],
-       [1., 0., 0.],
-       [0., 0., 1.]])
+    MultiTaskRegression(path_type='gs')
+    >>> model.predict(data.x)[:5, ]
+    array([[ 14.67257826,  -4.2882759 ,  12.050597  ],
+        [  8.99687125,  -5.74834275,  17.67719359],
+        [ 27.60141854, -28.89527087, -13.13808967],
+        [ 13.63623637,  -0.81303274,   5.02318398],
+        [-28.48945127,  21.52084036,  14.86113707]])
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None,
-                 alpha=None, s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
-                 always_select=None,
-                 thread=1, covariance_update=False,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 fit_intercept=True,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
+                 covariance_update=False,
+                 # primary_model_fit_max_iter=10,
+                 # primary_model_fit_epsilon=1e-8,
+                 # approximate_Newton=False
                  ):
         super().__init__(
             algorithm_type="abess", model_type="Multigaussian",
             normalize_type=1, path_type=path_type,
             max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
-            alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            alpha=alpha, fit_intercept=fit_intercept, s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             thread=thread, covariance_update=covariance_update,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             _estimator_type='regressor'
@@ -685,7 +712,7 @@ class MultiTaskRegression(bess_base):
             y_pred = y_pred[:, np.newaxis]
         return y_pred
 
-    def score(self, X, y):
+    def score(self, X, y, sample_weight=None):
         r"""
         Give data, and it returns the coefficient of determination.
 
@@ -695,17 +722,20 @@ class MultiTaskRegression(bess_base):
             Sample matrix.
         y : array-like, shape(n_samples, M_responses)
             Real responses for given X.
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
 
         Returns
         -------
         score : float
             :math:`R^2` score.
         """
-        X, y = new_data_check(self, X, y)
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
 
         y_pred = self.predict(X)
-        # return -((y - y_pred) * (y - y_pred)).sum()
-        return r2_score(y, y_pred)
+        return r2_score(y, y_pred, sample_weight=sample_weight)
 
 
 @ fix_docs
@@ -726,6 +756,8 @@ class MultinomialRegression(bess_base):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import MultinomialRegression
@@ -736,57 +768,52 @@ class MultinomialRegression(bess_base):
     >>>     n = 100, p = 50, k = 10, M = 3, family = 'multinomial')
     >>> model = MultinomialRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    MultinomialRegression(always_select=[], support_size=10)
-    >>> model.predict(data.x)[0:10, ]
-    array([1, 0, 0, 0, 1, 1, 1, 2, 1, 2])
-
+    MultinomialRegression(support_size=10)
+    >>> model.predict(data.x)[:10, ]
+    array([0, 2, 0, 0, 1, 1, 1, 1, 1, 0])
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = MultinomialRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    MultinomialRegression(always_select=[])
-    >>> model.predict(data.x)[0:10, ]
-    array([1, 2, 0, 0, 1, 1, 1, 2, 1, 2])
-
+    MultinomialRegression()
+    >>> model.predict(data.x)[:10, ]
+    array([0, 2, 0, 0, 1, 1, 1, 1, 1, 0])
     >>>
     >>> # path_type="gs"
     >>> model = MultinomialRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    MultinomialRegression(always_select=[], path_type='gs')
-    >>> model.predict(data.x)[0:10, ]
-    array([1, 2, 0, 0, 1, 1, 1, 2, 1, 2])
-
+    MultinomialRegression(path_type='gs')
+    >>> model.predict(data.x)[:10, ]
+    array([0, 2, 0, 0, 1, 1, 1, 1, 1, 0])
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None,
-                 alpha=None, s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1,
-                 screening_size=-1,
-                 always_select=None,
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 fit_intercept=True,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
                  primary_model_fit_max_iter=10,
                  primary_model_fit_epsilon=1e-8,
-                 #  approximate_Newton=False,
-                 thread=1,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128
+                 # approximate_Newton=False
                  ):
         super().__init__(
             algorithm_type="abess", model_type="Multinomial", normalize_type=2,
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
-            alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            alpha=alpha, fit_intercept=fit_intercept, s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             approximate_Newton=True,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             _estimator_type='classifier'
@@ -835,10 +862,8 @@ class MultinomialRegression(bess_base):
 
         Returns
         -------
-        y : array-like, shape(n_samples, M_responses)
-            Predict class labels for samples in X.
-            Each row contains only one "1", and its column index is the
-            predicted class for related sample.
+        y : array-like, shape(n_samples, )
+            Predicted class label for each sample in X.
         """
         X = new_data_check(self, X)
 
@@ -852,7 +877,7 @@ class MultinomialRegression(bess_base):
         cl = getattr(self, "classes_", np.arange(self.coef_.shape[1]))
         return cl[max_item]
 
-    def score(self, X, y):
+    def score(self, X, y, sample_weight=None):
         """
         Give new data, and it returns the prediction accuracy.
 
@@ -862,26 +887,30 @@ class MultinomialRegression(bess_base):
             Test data.
         y : array-like, shape(n_samples, M_responses)
             Test response (dummy variables of real class).
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
 
         Returns
         -------
         score : float
             the mean prediction accuracy.
         """
-        X, y = new_data_check(self, X, y)
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
         # if (len(y.shape) == 1 or y.shape[1] == 1):
         #     y, _ = categorical_to_dummy(y.squeeze())
 
         # pr = self.predict_proba(X)
         # return np.sum(y * np.log(pr))
-        y_real = np.zeros(X.shape[0])
+        y_true = np.zeros(X.shape[0])
         if (len(y.shape) > 1 and y.shape[1] == self.coef_.shape[1]):
             # if given dummy y
-            y_real = np.nonzero(y)[1]
+            y_true = np.nonzero(y)[1]
         else:
-            y_real = y
+            y_true = y
         y_pred = self.predict(X)
-        return (y_real == y_pred).mean()
+        return accuracy_score(y_true, y_pred, sample_weight=sample_weight)
 
 
 @ fix_docs
@@ -901,6 +930,8 @@ class GammaRegression(bess_base):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import GammaRegression
@@ -910,57 +941,60 @@ class GammaRegression(bess_base):
     >>> data = make_glm_data(n = 100, p = 50, k = 10, family = 'gamma')
     >>> model = GammaRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    GammaRegression(always_select=[], support_size=10)
-    >>> model.predict(data.x)[1:4]
-    array([1.34510045e+22, 2.34908508e+30, 1.91570199e+21, 1.29563315e+25])
+    GammaRegression(support_size=10)
+    >>> model.predict(data.x)[:4]
+    array([0.01295776, 0.01548078, 0.01221642, 0.01623115])
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = GammaRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    GammaRegression(always_select=[])
-    >>> model.predict(data.x)[1:4]
-    array([7.03065424e+19, 7.03065424e+19, 7.03065424e+19, 7.03065424e+19])
+    GammaRegression()
+    >>> model.predict(data.x)[:4]
+    array([0.01779091, 0.01779091, 0.01779091, 0.01779091])
     >>>
     >>> # path_type="gs"
     >>> model = GammaRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    GammaRegression(always_select=[], path_type='gs')
-    >>> model.predict(data.x)[1:4]
-    array([7.03065424e+19, 7.03065424e+19, 7.03065424e+19, 7.03065424e+19])
+    GammaRegression(path_type='gs')
+    >>> model.predict(data.x)[:4]
+    array([0.01779091, 0.01779091, 0.01779091, 0.01779091])
+
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None, alpha=None,
-                 s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
-                 always_select=None,
-                 primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
-                 thread=1,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 fit_intercept=True,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
+                 primary_model_fit_max_iter=10,
+                 primary_model_fit_epsilon=1e-8,
+                 approximate_Newton=False
                  ):
         super().__init__(
             algorithm_type="abess", model_type="Gamma", normalize_type=2,
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
-            alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            alpha=alpha, fit_intercept=fit_intercept, s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
-            thread=thread,
-            sparse_matrix=sparse_matrix,
+            thread=thread, approximate_Newton=approximate_Newton,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             _estimator_type='regressor'
         )
 
     def _more_tags(self):
-        return {'poor_score': True}
+        return {'poor_score': True,
+                'requires_positive_y': True}
 
     def predict(self, X):
         r"""
@@ -979,10 +1013,10 @@ class GammaRegression(bess_base):
         X = new_data_check(self, X)
 
         intercept_ = np.ones(X.shape[0]) * self.intercept_
-        xbeta_exp = np.exp(X.dot(self.coef_) + intercept_)
+        xbeta_exp = - 1 / (X.dot(self.coef_) + intercept_)
         return xbeta_exp
 
-    def score(self, X, y, weights=None):
+    def score(self, X, y, sample_weight=None):
         r"""
         Give new data, and it returns the prediction error.
 
@@ -992,26 +1026,34 @@ class GammaRegression(bess_base):
             Sample matrix.
         y : array-like, shape(n_samples, p_features)
             Real response for given X.
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
 
         Returns
         -------
         score : float
             Prediction error.
         """
-        if weights is None:
-            X = np.array(X)
-            weights = np.ones(X.shape[0])
-        X, y, weights = new_data_check(self, X, y, weights)
+        # if weights is None:
+        #     X = np.array(X)
+        #     weights = np.ones(X.shape[0])
+        # X, y, weights = new_data_check(self, X, y, weights)
 
-        def deviance(y, y_pred):
-            dev = 2 * (np.log(y_pred / y) + y / y_pred - 1)
-            return np.sum(weights * dev)
+        # def deviance(y, y_pred):
+        #     dev = 2 * (np.log(y_pred / y) + y / y_pred - 1)
+        #     return np.sum(weights * dev)
 
+        # y_pred = self.predict(X)
+        # y_mean = np.average(y, weights=weights)
+        # dev = deviance(y, y_pred)
+        # dev_null = deviance(y, y_mean)
+        # return 1 - dev / dev_null
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
         y_pred = self.predict(X)
-        y_mean = np.average(y, weights=weights)
-        dev = deviance(y, y_pred)
-        dev_null = deviance(y, y_mean)
-        return 1 - dev / dev_null
+        return d2_tweedie_score(y, y_pred, power=2,
+                                sample_weight=sample_weight)
 
 
 @ fix_docs
@@ -1032,6 +1074,8 @@ class OrdinalRegression(bess_base):
 
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.linear import OrdinalRegression
@@ -1039,61 +1083,53 @@ class OrdinalRegression(bess_base):
     >>> import numpy as np
     >>> np.random.seed(12345)
     >>> data = make_glm_data(n = 1000, p = 50, k = 10, family = 'ordinal')
-    >>> print((np.nonzero(data.coef_)[0]))
-    [ 0  4 10 14 26 29 34 38 47 48]
     >>> model = OrdinalRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    classes: [0. 1. 2.]
     OrdinalRegression(support_size=10)
-    >>> print((np.nonzero(model.coef_)[0]))
-    [ 0  4 10 14 26 29 38 40 47 48]
+    >>> model.predict(data.x)[:10]
+    array([2, 1, 1, 1, 2, 0, 2, 1, 2, 1])
 
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
     >>> model = OrdinalRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    classes: [0. 1. 2.]
     OrdinalRegression()
-    >>> print((np.nonzero(model.coef_)[0]))
-    [ 0  4  8 10 14 26 29 38 40 47 48]
+    >>> model.predict(data.x)[:10]
+    array([2, 1, 1, 1, 2, 0, 2, 1, 2, 1])
     >>>
     >>> # path_type="gs"
     >>> model = OrdinalRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    classes: [0. 1. 2.]
     OrdinalRegression(path_type='gs')
-    >>> print((np.nonzero(model.coef_)[0]))
-    [ 0  4 10 14 26 29 38 47 48]
+    >>> model.predict(data.x)[:10]
+    array([2, 1, 1, 1, 2, 0, 2, 1, 2, 1])
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None,
-                 alpha=None, s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1,
-                 screening_size=-1,
-                 always_select=None,
+    def __init__(self, path_type="seq", support_size=None,
+                 s_min=None, s_max=None, group=None, alpha=None,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 thread=1, A_init=None,
+                 always_select=None, max_iter=20, exchange_num=5,
+                 is_warm_start=True, splicing_type=0,
+                 important_search=128, screening_size=-1,
                  primary_model_fit_max_iter=10,
                  primary_model_fit_epsilon=1e-8,
-                 approximate_Newton=False,
-                 thread=1,
-                 sparse_matrix=False,
-                 splicing_type=0,
-                 important_search=128
+                 approximate_Newton=False
                  ):
         super().__init__(
             algorithm_type="abess", model_type="Ordinal", normalize_type=2,
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             approximate_Newton=approximate_Newton,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search,
             # _estimator_type="regressor"
@@ -1142,28 +1178,6 @@ class OrdinalRegression(bess_base):
         proba = self.predict_proba(X)
         return np.argmax(proba, axis=1)
 
-    # def score(self, X, y):
-    #     """
-    #     Give new data, and it returns the entropy function.
-
-    #     Parameters
-    #     ----------
-    #     X : array-like, shape(n_samples, p_features)
-    #         Test data.
-    #     y : array-like, shape(n_samples, M_responses)
-    #         Test response (dummy variables of real class).
-
-    #     Returns
-    #     -------
-    #     score : float
-    #         entropy function
-    #     """
-    #     X, y = new_data_check(self, X, y)
-    #     if len(y.shape) == 1:
-    #         y = categorical_to_dummy(y)
-
-    #     return ???
-    
     def score(self, X, y, k=None, sample_weight=None, ignore_ties=False):
         """
         Give new data, and it returns normalized discounted cumulative gain.
@@ -1175,20 +1189,32 @@ class OrdinalRegression(bess_base):
         y : array-like, shape(n_samples, )
             Test response (class labels for samples in X).
         k : int, default=None
-            Only consider the highest k scores in the ranking. If None, use all outputs.
-        sample_weight : ndarray of shape (n_samples, ), default=None
-            If None, all samples are given the same weight.
+            Only consider the highest k scores in the ranking.
+            If None, use all outputs.
+        sample_weight: array-like, shape(n_samples,), default=None
+            Sample weights.
         ignore_ties : bool, default=False
-            Assume that there are no ties in y_pred (which is likely to be the case if y_score is continuous) for efficiency gains.
+            Assume that there are no ties in y_pred
+            (which is likely to be the case if y_score is continuous)
+            for efficiency gains.
 
         Returns
         -------
         score : float
              normalized discounted cumulative gain
         """
-        X, y = new_data_check(self, X, y)
-        y_pred = self.predict(X)
-        ndcg = ndcg_score(y_true=y.reshape(1, -1), y_score=y_pred.reshape(1, -1), k=k, sample_weight=sample_weight, ignore_ties=ignore_ties)
+        if sample_weight is None:
+            sample_weight = np.ones(len(y))
+        X, y, sample_weight = new_data_check(self, X, y, sample_weight)
+        unique_ = np.unique(y)
+        class_num = len(unique_)
+        for i in range(class_num):
+            y[y == unique_[i]] = i
+        y_true = class_num - 1 - abs(np.tile(np.arange(len(unique_)),
+                                             (len(y), 1)) - y[..., np.newaxis])
+        y_score = self.predict_proba(X)
+        ndcg = ndcg_score(y_true, y_score, k=k,
+                          sample_weight=sample_weight, ignore_ties=ignore_ties)
         return ndcg
 
 
@@ -1201,12 +1227,14 @@ class abessLogistic(LogisticRegression):
     def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
                  is_warm_start=True, support_size=None, alpha=None,
                  s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="roc_auc",
+                 screening_size=-1,
                  always_select=None,
                  primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
                  approximate_Newton=False,
                  thread=1,
-                 sparse_matrix=False,
+                 A_init=None,
+                 group=None,
                  splicing_type=0,
                  important_search=128,
                  ):
@@ -1215,14 +1243,14 @@ class abessLogistic(LogisticRegression):
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             approximate_Newton=approximate_Newton,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search
         )
@@ -1237,10 +1265,12 @@ class abessLm(LinearRegression):
     def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
                  is_warm_start=True, support_size=None, alpha=None,
                  s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 screening_size=-1,
                  always_select=None,
                  thread=1, covariance_update=False,
-                 sparse_matrix=False,
+                 A_init=None,
+                 group=None,
                  splicing_type=0,
                  important_search=128,
                  # primary_model_fit_max_iter=10,
@@ -1251,11 +1281,11 @@ class abessLm(LinearRegression):
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             thread=thread, covariance_update=covariance_update,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search
         )
@@ -1270,12 +1300,14 @@ class abessCox(CoxPHSurvivalAnalysis):
     def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
                  is_warm_start=True, support_size=None, alpha=None,
                  s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 screening_size=-1,
                  always_select=None,
                  primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
                  approximate_Newton=False,
                  thread=1,
-                 sparse_matrix=False,
+                 A_init=None,
+                 group=None,
                  splicing_type=0,
                  important_search=128
                  ):
@@ -1284,14 +1316,14 @@ class abessCox(CoxPHSurvivalAnalysis):
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             approximate_Newton=approximate_Newton,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search
         )
@@ -1306,11 +1338,13 @@ class abessPoisson(PoissonRegression):
     def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
                  is_warm_start=True, support_size=None, alpha=None,
                  s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 screening_size=-1,
                  always_select=None,
                  primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
                  thread=1,
-                 sparse_matrix=False,
+                 A_init=None,
+                 group=None,
                  splicing_type=0,
                  important_search=128
                  ):
@@ -1319,13 +1353,13 @@ class abessPoisson(PoissonRegression):
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search
         )
@@ -1340,10 +1374,12 @@ class abessMultigaussian(MultiTaskRegression):
     def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
                  is_warm_start=True, support_size=None, alpha=None,
                  s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 screening_size=-1,
                  always_select=None,
                  thread=1, covariance_update=False,
-                 sparse_matrix=False,
+                 A_init=None,
+                 group=None,
                  splicing_type=0,
                  important_search=128
                  ):
@@ -1352,11 +1388,11 @@ class abessMultigaussian(MultiTaskRegression):
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             thread=thread, covariance_update=covariance_update,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search
         )
@@ -1371,12 +1407,14 @@ class abessMultinomial(MultinomialRegression):
     def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
                  is_warm_start=True, support_size=None,
                  alpha=None, s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 screening_size=-1,
                  always_select=None,
                  primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
                  # approximate_Newton=False,
                  thread=1,
-                 sparse_matrix=False,
+                 A_init=None,
+                 group=None,
                  splicing_type=0,
                  important_search=128
                  ):
@@ -1385,14 +1423,14 @@ class abessMultinomial(MultinomialRegression):
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             # approximate_Newton=approximate_Newton,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search
         )
@@ -1407,12 +1445,14 @@ class abessGamma(GammaRegression):
     def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
                  is_warm_start=True, support_size=None, alpha=None,
                  s_min=None, s_max=None,
-                 ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
+                 ic_type="ebic", ic_coef=1.0, cv=1, cv_score="test_loss",
+                 screening_size=-1,
                  always_select=None,
                  primary_model_fit_max_iter=10,
                  primary_model_fit_epsilon=1e-8,
                  thread=1,
-                 sparse_matrix=False,
+                 A_init=None,
+                 group=None,
                  splicing_type=0,
                  important_search=128
                  ):
@@ -1421,13 +1461,13 @@ class abessGamma(GammaRegression):
             path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
             alpha=alpha, s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type,
             important_search=important_search
         )

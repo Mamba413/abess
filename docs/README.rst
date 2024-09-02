@@ -12,6 +12,7 @@ Welcome to ``abess``'s documentation!
 
 
 |Python build status| |R build status| |codecov| |docs| |cran| |pypi| |conda-forge| |pyversions| |License| |Codacy|
+|CodeFactor| |Platform| |Downloads|
 
 .. |Codacy| image:: https://app.codacy.com/project/badge/Grade/3f6e60a3a3e44699a033159633981b76 
    :target: https://www.codacy.com/gh/abess-team/abess/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=abess-team/abess&amp;utm_campaign=Badge_Grade
@@ -37,7 +38,12 @@ Welcome to ``abess``'s documentation!
 .. |pyversions| image:: https://img.shields.io/pypi/pyversions/abess
 .. |License| image:: https://img.shields.io/badge/License-GPL%20v3-blue.svg 
    :target: http://www.gnu.org/licenses/gpl-3.0
-
+.. |CodeFactor| image:: https://www.codefactor.io/repository/github/abess-team/abess/badge 
+   :target: https://www.codefactor.io/repository/github/abess-team/abess
+.. |Platform| image:: https://anaconda.org/conda-forge/abess/badges/platforms.svg
+   :target: https://anaconda.org/conda-forge/abess
+.. |Downloads| image:: https://pepy.tech/badge/abess
+   :target: https://pepy.tech/project/abess
 
 Overview
 ============
@@ -184,34 +190,42 @@ the other best subset selection problems.
 What's new
 ===========
 
-Version 0.4.5:
+Unreleased
+----------
 
-- `abess` Python package can be installed via `conda`. 
-- Easier installation for Python users
-- ``abess`` R package is is highlighted as one of the core packages in `CRAN Task View: Machine Learning & Statistical Learning <https://cran.r-project.org/web/views/MachineLearning.html>`__.
-- Support predicting survival function in `abess.linear.CoxPHSurvivalAnalysis`.
-- Rename estimators in Python. Please check `here <https://abess.readthedocs.io/en/latest/Python-package/index.html>`__.
+-  Use `CMake <https://cmake.org/>`__ on compiling to increase scalability.
+-  Support no-intercept model for most regressors in `abess.linear` with argument `fit_intercept=False`. We assume that the data has been centered for these models.
 
-New best subset selection tasks: 
 
-- Generalized linear model for ordinal regression (a.k.a rank learning in some machine learning literature).
+Version 0.4.6
+-------------
+
+-  Support `score` function for all GLM estimators.
+-  Rearrange some arguments to improve legibility. 
+   Please check `here <https://abess.readthedocs.io/en/latest/Python-package/index.html>`__ for the latest API.
+-  Better docstring, e.g. move important arguments to the front.
+-  Combine `metrics.py` and `functions.py`.
 
 Citation         
 ==========
 
 If you use ``abess`` or reference our tutorials in a presentation or publication, we would appreciate citations of our library [#5abesslib]_.
 
-| Jin Zhu, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, Junxian Zhu, Xueqin Wang (2021). “abess: A Fast Best Subset Selection Library in Python and R.” arXiv:2110.09697.
+| Zhu Jin, Xueqin Wang, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, and Junxian Zhu. "abess: A Fast Best-Subset Selection Library in Python and R." Journal of Machine Learning Research 23, no. 202 (2022): 1-7.
 
 The corresponding BibteX entry:
 
 .. code-block:: shell
 
-   @article{zhu-abess-arxiv,
-      author  = {Jin Zhu and Liyuan Hu and Junhao Huang and Kangkang Jiang and Yanhang Zhang and Shiyun Lin and Junxian Zhu and Xueqin Wang},
-      title   = {abess: A Fast Best Subset Selection Library in Python and R},
-      journal = {arXiv:2110.09697},
-      year    = {2021},
+   @article{JMLR:v23:21-1060,
+     author  = {Jin Zhu and Xueqin Wang and Liyuan Hu and Junhao Huang and Kangkang Jiang and Yanhang Zhang and Shiyun Lin and Junxian Zhu},
+     title   = {abess: A Fast Best-Subset Selection Library in Python and R},
+     journal = {Journal of Machine Learning Research},
+     year    = {2022},
+     volume  = {23},
+     number  = {202},
+     pages   = {1--7},
+     url     = {http://jmlr.org/papers/v23/21-1060.html}
    }
 
 References
@@ -221,9 +235,9 @@ References
 
 .. [#4sksurv] Pölsterl, S (2020). scikit-survival: A Library for Time-to-Event Analysis Built on Top of scikit-learn. J. Mach. Learn. Res., 21(212), 1-6.
 
-.. [#2gbes] Yanhang Zhang, Junxian Zhu, Jin Zhu, and Xueqin Wang (2021). Certifiably Polynomial Algorithm for Best Group Subset Selection. arXiv preprint arXiv:2104.12576.
+.. [#2gbes] Yanhang Zhang, Junxian Zhu, Jin Zhu, and Xueqin Wang (2022). A Splicing Approach to Best Subset of Groups Selection. INFORMS Journal on Computing (Accepted). doi:10.1287/ijoc.2022.1241.
 
 .. [#3nbes] Qiang Sun and Heping Zhang (2020). Targeted Inference Involving High-Dimensional Data Using Nuisance Penalized Regression, Journal of the American Statistical Association, DOI: 10.1080/01621459.2020.1737079.
-
-.. [#5abesslib] Jin Zhu, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, Junxian Zhu, and Xueqin Wang (2021). abess: A Fast Best Subset Selection Library in Python and R. arXiv preprint arXiv:2110.09697.
+    
+.. [#5abesslib] Zhu Jin, Xueqin Wang, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, and Junxian Zhu. "abess: A Fast Best-Subset Selection Library in Python and R." Journal of Machine Learning Research 23, no. 202 (2022): 1-7.
     

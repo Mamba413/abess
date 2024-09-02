@@ -7,17 +7,6 @@ from .bess_base import bess_base
 from .utilities import new_data_check
 
 
-def fix_docs(cls):
-    # This function is to inherit the docstring from base class
-    # and avoid unnecessary duplications on description.
-    index = cls.__doc__.find("Examples\n    --------\n")
-    if index != -1:
-        cls.__doc__ = cls.__doc__[:index] + \
-            cls.__bases__[0].__doc__ + cls.__doc__[index:]
-    return cls
-
-
-@fix_docs
 class SparsePCA(bess_base):
     r"""
     Adaptive Best-Subset Selection(ABESS) algorithm for
@@ -25,12 +14,81 @@ class SparsePCA(bess_base):
 
     Parameters
     ----------
+    support_size : array-like, optional
+        default=range(min(n, int(n/(log(log(n))log(p))))).
+        An integer vector representing the alternative support sizes.
+    group : int, optional, default=np.ones(p)
+        The group index for each variable.
+    ic_type : {'aic', 'bic', 'gic', 'ebic', 'loss'}, optional, default='loss'
+        The type of criterion for choosing the support size if `cv=1`.
+    ic_coef : float, optional, default=1.0
+        Constant that controls the regularization strength
+        on chosen information criterion.
+    cv : int, optional, default=1
+        The folds number when use the cross-validation method.
+
+        - If cv=1, cross-validation would not be used.
+        - If cv>1, support size will be chosen by CV's test loss,
+          instead of IC.
+
+    cv_score : {'test_loss'}, optional, default='test_loss'
+        The score used on test data for CV.
+        Only 'test_loss' is supported for PCA now.
+
+    thread : int, optional, default=1
+        Max number of multithreads.
+
+        - If thread = 0, the maximum number of threads supported by
+          the device will be used.
+
+    A_init : array-like, optional, default=None
+        Initial active set before the first splicing.
+    always_select : array-like, optional, default=None
+        An array contains the indexes of variables
+        we want to consider in the model.
+
+    max_iter : int, optional, default=20
+        Maximum number of iterations taken for the
+        splicing algorithm to converge.
+        Due to the limitation of loss reduction, the splicing
+        algorithm must be able to converge.
+        The number of iterations is only to simplify the implementation.
+    is_warm_start : bool, optional, default=True
+        When tuning the optimal parameter combination,
+        whether to use the last solution
+        as a warm start to accelerate the iterative
+        convergence of the splicing algorithm.
+
+    screening_size : int, optional, default=-1
+        The number of variables remaining after screening.
+        It should be a non-negative number smaller than p,
+        but larger than any value in support_size.
+
+        - If screening_size=-1, screening will not be used.
+        - If screening_size=0, screening_size will be set as
+          :math:`\\min(p, int(n / (\\log(\\log(n))\\log(p))))`.
+
     splicing_type: {0, 1}, optional, default=1
         The type of splicing.
         "0" for decreasing by half, "1" for decresing by one.
 
+    Attributes
+    ----------
+    coef_ : array-like, shape(p_features, ) or (p_features, k)
+        The first :math:`k` principal axes in feature space, which are
+        sorted by decreasing explained variance.
+
+    References
+    ----------
+    - Junxian Zhu, Canhong Wen, Jin Zhu, Heping Zhang, and Xueqin Wang.
+      A polynomial algorithm for best-subset selection problem.
+      Proceedings of the National Academy of Sciences,
+      117(52):33117-33123, 2020.
+
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.decomposition import SparsePCA
@@ -41,46 +99,36 @@ class SparsePCA(bess_base):
     >>> ### X known
     >>> X = np.random.randn(100, 50)
     >>> model.fit(X)
-    SparsePCA(always_select=[], support_size=10)
-    >>> # print(model.coef_)
-    >>> print(model.coef_[1:6,])
-    [[6.36598737e-314]
-     [1.06099790e-313]
-     [1.48539705e-313]
-     [1.90979621e-313]
-     [2.33419537e-313]]
+    SparsePCA(support_size=10)
+    >>> print(np.nonzero(model.coef_)[0])
+    [10 26 31 33 35 36 38 42 43 49]
     >>>
     >>> ### X unknown, but Sigma known
     >>> model.fit(Sigma = np.cov(X.T))
-    SparsePCA(always_select=[], support_size=10)
-    >>> # print(model.coef_)
-    >>> print(model.coef_[1:6,])
-    [[6.36598737e-314]
-     [1.06099790e-313]
-     [1.48539705e-313]
-     [1.90979621e-313]
-     [2.33419537e-313]]
+    SparsePCA(support_size=10)
+    >>> print(np.nonzero(model.coef_)[0])
+    [10 26 31 33 35 36 38 42 43 49]
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
-                 is_warm_start=True, support_size=None,
-                 s_min=None, s_max=None,
-                 ic_type="loss", ic_coef=1.0, cv=1, screening_size=-1,
-                 always_select=None,
-                 thread=1,
-                 sparse_matrix=False,
-                 splicing_type=1
+    def __init__(self, support_size=None, group=None,
+                 ic_type="loss", ic_coef=1.0,
+                 cv=1, cv_score="test_loss",
+                 thread=1, A_init=None, always_select=None,
+                 max_iter=20, exchange_num=5, is_warm_start=True,
+                 splicing_type=1,
+                 screening_size=-1,
                  ):
         super().__init__(
             algorithm_type="abess", model_type="PCA", normalize_type=1,
-            path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
+            path_type="seq",
+            max_iter=max_iter, exchange_num=exchange_num,
             is_warm_start=is_warm_start, support_size=support_size,
-            s_min=s_min, s_max=s_max,
-            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            # s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv, cv_score=cv_score,
             screening_size=screening_size,
             always_select=always_select,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init, group=group,
             splicing_type=splicing_type
         )
 
@@ -124,7 +172,7 @@ class SparsePCA(bess_base):
         return explain / full
 
     def fit(self, X=None, y=None, is_normal=False,
-            group=None, Sigma=None, number=1, n=None, A_init=None):
+            Sigma=None, number=1, n=None, sparse_matrix=False):
         r"""
         The fit function is used to transfer the information of data and
         return the fit result.
@@ -139,8 +187,6 @@ class SparsePCA(bess_base):
             whether normalize the variables array before fitting the algorithm.
         weight : array-like, shape(n_samples,), optional, default=np.ones(n)
             Individual weights for each sample. Only used for is_weight=True.
-        group : int, optional, default=np.ones(p)
-            The group index for each variable.
         Sigma : array-like, shape(p_features, p_features), optional
             default=np.cov(X.T).
             Sample covariance matrix.
@@ -153,12 +199,17 @@ class SparsePCA(bess_base):
 
             - if X is given, it would be X.shape[0] by default;
             - if X is not given (Sigma is given), it would be 1 by default.
+
+        sparse_matrix : bool, optional, default=False
+            Set as True to treat X as sparse matrix during fitting.
+            It would be automatically set as True when X has the
+            sparse matrix type defined in scipy.sparse.
         """
 
         # Input check
         if X is not None:
             if issparse(X):
-                self.sparse_matrix = True
+                sparse_matrix = True
             X = check_array(X, accept_sparse=True)
 
             n = X.shape[0]
@@ -200,21 +251,31 @@ class SparsePCA(bess_base):
         # model_type_int = 7
         path_type_int = 1
 
-        # Ic_type
-        if self.ic_type == "loss":
-            ic_type_int = 0
-        elif self.ic_type == "aic":
-            ic_type_int = 1
-        elif self.ic_type == "bic":
-            ic_type_int = 2
-        elif self.ic_type == "gic":
-            ic_type_int = 3
-        elif self.ic_type == "ebic":
-            ic_type_int = 4
+        # Ic_type: aic, bic, gic, ebic
+        # cv_score: test_loss, roc_auc
+        if self.cv == 1:
+            if self.ic_type == "loss":
+                eval_type_int = 0
+            elif self.ic_type == "aic":
+                eval_type_int = 1
+            elif self.ic_type == "bic":
+                eval_type_int = 2
+            elif self.ic_type == "gic":
+                eval_type_int = 3
+            elif self.ic_type == "ebic":
+                eval_type_int = 4
+            elif self.ic_type == "hic":
+                eval_type_int = 5
+            else:
+                raise ValueError(
+                    "ic_type should be \"aic\", \"bic\", \"ebic\","
+                    " \"gic\" or \"hic\".")
         else:
-            raise ValueError(
-                "ic_type should be \"loss\", \"aic\", \"bic\","
-                " \"ebic\" or \"gic\"")
+            if self.cv_score == "test_loss":
+                eval_type_int = 0
+            else:
+                raise ValueError(
+                    "cv_score should be \"test_loss\".")
 
         # cv
         if (not isinstance(self.cv, int) or self.cv <= 0):
@@ -223,21 +284,21 @@ class SparsePCA(bess_base):
             raise ValueError("cv should be smaller than n.")
 
         # Group
-        if group is None:
+        if self.group is None:
             g_index = list(range(p))
         else:
-            group = np.array(group)
-            if group.ndim > 1:
+            g = np.array(self.group)
+            if g.ndim > 1:
                 raise ValueError("group should be an 1D array of integers.")
-            if group.size != p:
+            if g.size != p:
                 raise ValueError(
                     "The length of group should be equal to X.shape[1].")
+            group_set = list(set(g))
+            g.sort()
             g_index = []
-            group.sort()
-            group_set = list(set(group))
             j = 0
             for i in group_set:
-                while group[j] != i:
+                while g[j] != i:
                     j += 1
                 g_index.append(j)
 
@@ -273,6 +334,8 @@ class SparsePCA(bess_base):
                     "screening size should be more than max(support_size).")
 
         # unused
+        early_stop = False
+        self.n_iter_ = 1
         new_s_min = 0
         new_s_max = 0
         cv_fold_id = np.array([], dtype="int32")
@@ -304,20 +367,18 @@ class SparsePCA(bess_base):
         #         "important_search should be a non-negative number.")
 
         # A_init
-        if A_init is None:
-            A_init = np.array([], dtype="int32")
+        if self.A_init is None:
+            A_init_list = np.array([], dtype="int32")
         else:
-            A_init = np.array(A_init, dtype="int32")
-            if A_init.ndim > 1:
-                raise ValueError(
-                    "The initial active set should be an 1D array of"
-                    " integers.")
-            if (A_init.min() < 0 or A_init.max() > p):
-                raise ValueError(
-                    "A_init contains wrong index.")
+            A_init_list = np.array(self.A_init, dtype="int32")
+            if A_init_list.ndim > 1:
+                raise ValueError("The initial active set should be "
+                                 "an 1D array of integers.")
+            if (A_init_list.min() < 0 or A_init_list.max() >= p):
+                raise ValueError("A_init contains out-of-range index.")
 
         # Sparse X
-        if self.sparse_matrix:
+        if sparse_matrix:
             if not isinstance(X, (coo_matrix)):
                 # print("sparse matrix 1")
                 nonzero = 0
@@ -349,10 +410,6 @@ class SparsePCA(bess_base):
         else:
             always_select_list = np.array(self.always_select, dtype="int32")
 
-        # unused
-        early_stop = False
-        self.n_iter_ = 1
-
         # wrap with cpp
         if (X_input and n < p) or (p <= number):
             result = [np.ones((p, number))]
@@ -363,7 +420,7 @@ class SparsePCA(bess_base):
                 n, p, normalize, Sigma,
                 self.max_iter, self.exchange_num,
                 path_type_int, self.is_warm_start,
-                ic_type_int, self.ic_coef, self.cv,
+                eval_type_int, self.ic_coef, self.cv,
                 g_index,
                 support_sizes,
                 cv_fold_id,
@@ -372,23 +429,49 @@ class SparsePCA(bess_base):
                 always_select_list,
                 early_stop,
                 self.thread,
-                self.sparse_matrix,
+                sparse_matrix,
                 self.splicing_type,
                 self.important_search,
                 number,
-                A_init
+                A_init_list
             )
 
         self.coef_ = result[0]
         return self
 
     def fit_transform(self, X=None, y=None, is_normal=False,
-                      group=None, Sigma=None, number=1, n=None, A_init=None):
-        self.fit(X, y, is_normal, group, Sigma, number, n, A_init)
+                      Sigma=None, number=1, n=None, sparse_matrix=False):
+        r"""
+        Fit and transform the sample matrix.
+        Returns transformed data in expected dimension.
+
+        Parameters
+        ----------
+        X : array-like, shape(n_samples, p_features)
+            Training data.
+        y : ignore
+            Ignore.
+        is_normal : bool, optional, default=False
+            whether normalize the variables array before fitting the algorithm.
+        weight : array-like, shape(n_samples,), optional, default=np.ones(n)
+            Individual weights for each sample. Only used for is_weight=True.
+        Sigma : array-like, shape(p_features, p_features), optional
+            default=np.cov(X.T).
+            Sample covariance matrix.
+            For PCA, it can be given as input, instead of X.
+            But if X is given, Sigma will be set to np.cov(X.T).
+        number : int, optional, default=1
+            Indicates the number of PCs returned.
+        n : int, optional, default=X.shape[0] or 1
+            Sample size.
+
+            - if X is given, it would be X.shape[0] by default;
+            - if X is not given (Sigma is given), it would be 1 by default.
+        """
+        self.fit(X, y, is_normal, Sigma, number, n, sparse_matrix)
         return X @ self.coef_
 
 
-@fix_docs
 class RobustPCA(bess_base):
     r"""
     Adaptive Best-Subset Selection(ABESS) algorithm for
@@ -396,12 +479,59 @@ class RobustPCA(bess_base):
 
     Parameters
     ----------
+    support_size : array-like, optional
+        default=range(min(n, int(n/(log(log(n))log(p))))).
+        An integer vector representing the alternative support sizes.
+    ic_type : {'aic', 'bic', 'gic', 'ebic', 'loss'}, optional, default='gic'
+        The type of criterion for choosing the support size.
+    ic_coef : float, optional, default=1.0
+        Constant that controls the regularization strength
+        on chosen information criterion.
+    thread : int, optional, default=1
+        Max number of multithreads.
+
+        - If thread = 0, the maximum number of threads supported by
+          the device will be used.
+
+    A_init : array-like, optional, default=None
+        Initial active set before the first splicing.
+    always_select : array-like, optional, default=None
+        An array contains the indexes of variables
+        we want to consider in the model.
+
+    max_iter : int, optional, default=20
+        Maximum number of iterations taken for the
+        splicing algorithm to converge.
+        Due to the limitation of loss reduction, the splicing
+        algorithm must be able to converge.
+        The number of iterations is only to simplify the implementation.
+    is_warm_start : bool, optional, default=True
+        When tuning the optimal parameter combination,
+        whether to use the last solution
+        as a warm start to accelerate the iterative
+        convergence of the splicing algorithm.
+
     splicing_type: {0, 1}, optional, default=1
         The type of splicing.
         "0" for decreasing by half, "1" for decresing by one.
 
+    Attributes
+    ----------
+    coef_ : array-like, shape(n_samples, p_features)
+        The transformed sample matrix after robust PCA.
+
+    References
+    ----------
+    - Junxian Zhu, Canhong Wen, Jin Zhu, Heping Zhang, and Xueqin Wang.
+      A polynomial algorithm for best-subset selection problem.
+      Proceedings of the National Academy of Sciences,
+      117(52):33117-33123, 2020.
+
+
     Examples
     --------
+    Results may differ with different version of numpy.
+
     >>> ### Sparsity known
     >>>
     >>> from abess.decomposition import RobustPCA
@@ -412,24 +542,16 @@ class RobustPCA(bess_base):
     >>> ### X known
     >>> X = np.random.randn(100, 50)
     >>> model.fit(X, r = 10)
-    RobustPCA(always_select=[], support_size=10)
-    >>> print(model.coef_)
-    [[0.         0.         0.         ... 0.         3.71203604 0.        ]
-     [0.         0.         0.         ... 0.         0.         0.        ]
-     [0.         0.         0.         ... 0.         0.         0.        ]
-     ...
-     [0.         0.         0.         ... 0.         0.         0.        ]
-     [0.         0.         0.         ... 0.         0.         0.        ]
-     [0.         0.         0.         ... 0.         0.         0.        ]]
-
+    RobustPCA(support_size=10)
+    >>> print(np.vstack(np.nonzero(model.coef_)))
+    [[ 6 10 24 30 33 35 40 61 73 85]
+     [43 21 23 30 44 32 49  8 48 19]]
     """
 
-    def __init__(self, max_iter=20, exchange_num=5, is_warm_start=True,
-                 support_size=None,
+    def __init__(self, support_size=None,
                  ic_type="gic", ic_coef=1.0,
-                 always_select=None,
-                 thread=1,
-                 sparse_matrix=False,
+                 thread=1, A_init=None, always_select=None,
+                 max_iter=20, exchange_num=5, is_warm_start=True,
                  splicing_type=1
                  ):
         super().__init__(
@@ -440,7 +562,8 @@ class RobustPCA(bess_base):
             ic_type=ic_type, ic_coef=ic_coef,
             always_select=always_select,
             thread=thread,
-            sparse_matrix=sparse_matrix,
+            A_init=A_init,
+            # group=group,
             splicing_type=splicing_type
         )
 
@@ -451,7 +574,7 @@ class RobustPCA(bess_base):
         # (It just returns the transformation of `X`.)
         return {'_skip_test': True}
 
-    def fit(self, X, y=None, r=None, group=None, A_init=None):
+    def fit(self, X, y=None, r=None, sparse_matrix=False):
         r"""
         The fit function is used to transfer the information of
         data and return the fit result.
@@ -466,14 +589,17 @@ class RobustPCA(bess_base):
             Rank of the (recovered) information matrix L.
             It should be smaller than rank of X
             (at least smaller than X.shape[1]).
-        group : int, optional, default=np.ones(p)
-            The group index for each variable.
+
+        sparse_matrix : bool, optional, default=False
+            Set as True to treat X as sparse matrix during fitting.
+            It would be automatically set as True when X has the
+            sparse matrix type defined in scipy.sparse.
         """
 
         # Input check
         if X is not None:
             if issparse(X):
-                self.sparse_matrix = True
+                sparse_matrix = True
             X = check_array(X, accept_sparse=True)
 
             n = X.shape[0]
@@ -498,36 +624,39 @@ class RobustPCA(bess_base):
 
         # Ic_type
         if self.ic_type == "aic":
-            ic_type_int = 1
+            eval_type_int = 1
         elif self.ic_type == "bic":
-            ic_type_int = 2
+            eval_type_int = 2
         elif self.ic_type == "gic":
-            ic_type_int = 3
+            eval_type_int = 3
         elif self.ic_type == "ebic":
-            ic_type_int = 4
+            eval_type_int = 4
+        elif self.ic_type == "hic":
+            eval_type_int = 5
         else:
             raise ValueError(
-                "ic_type should be \"aic\", \"bic\", \"ebic\" or \"gic\"")
+                "ic_type should be \"aic\", \"bic\", \"ebic\", \"gic\", "
+                "or \"hic\".")
 
-        # Group
-        if group is None:
-            g_index = list(range(n * p))
-        else:
-            group = np.array(group)
-            if group.ndim > 1:
-                raise ValueError("group should be an 1D array of integers.")
-            if group.size != n * p:
-                raise ValueError(
-                    "The length of group should be equal to"
-                    " (X.shape[0] * X.shape[1]).")
-            g_index = []
-            group.sort()
-            group_set = list(set(group))
-            j = 0
-            for i in group_set:
-                while group[j] != i:
-                    j += 1
-                g_index.append(j)
+        # # Group
+        # if group is None:
+        #     g_index = list(range(n * p))
+        # else:
+        #     group = np.array(group)
+        #     if group.ndim > 1:
+        #         raise ValueError("group should be an 1D array of integers.")
+        #     if group.size != n * p:
+        #         raise ValueError(
+        #             "The length of group should be equal to"
+        #             " (X.shape[0] * X.shape[1]).")
+        #     g_index = []
+        #     group.sort()
+        #     group_set = list(set(group))
+        #     j = 0
+        #     for i in group_set:
+        #         while group[j] != i:
+        #             j += 1
+        #         g_index.append(j)
 
         # path parameter (note that: path_type_int = 1)
         if self.support_size is None:
@@ -551,6 +680,7 @@ class RobustPCA(bess_base):
             raise ValueError("r should be integer")
 
         # unused
+        g_index = list(range(n * p))
         new_s_min = 0
         new_s_max = 0
         new_lambda_min = 0
@@ -577,20 +707,18 @@ class RobustPCA(bess_base):
         #         "important_search should be a non-negative number.")
 
         # A_init
-        if A_init is None:
-            A_init = np.array([], dtype="int32")
+        if self.A_init is None:
+            A_init_list = np.array([], dtype="int32")
         else:
-            A_init = np.array(A_init, dtype="int32")
-            if A_init.ndim > 1:
-                raise ValueError(
-                    "The initial active set should be an 1D array of"
-                    " integers.")
-            if (A_init.min() < 0 or A_init.max() >= n * p):
-                raise ValueError(
-                    "A_init contains wrong index.")
+            A_init_list = np.array(self.A_init, dtype="int32")
+            if A_init_list.ndim > 1:
+                raise ValueError("The initial active set should be "
+                                 "an 1D array of integers.")
+            if (A_init_list.min() < 0 or A_init_list.max() >= n * p):
+                raise ValueError("A_init contains out-of-range index.")
 
         # Sparse X
-        if self.sparse_matrix:
+        if sparse_matrix:
             if not isinstance(X, (coo_matrix)):
                 # print("sparse matrix 1")
                 nonzero = 0
@@ -632,7 +760,7 @@ class RobustPCA(bess_base):
                 X, n, p, normalize,
                 self.max_iter, self.exchange_num,
                 path_type_int, self.is_warm_start,
-                ic_type_int, self.ic_coef,
+                eval_type_int, self.ic_coef,
                 g_index,
                 support_sizes,
                 alphas,
@@ -644,10 +772,10 @@ class RobustPCA(bess_base):
                 self.primary_model_fit_epsilon,
                 early_stop,
                 self.thread,
-                self.sparse_matrix,
+                sparse_matrix,
                 self.splicing_type,
                 self.important_search,
-                A_init
+                A_init_list
             )
 
         self.coef_ = result[0].reshape(p, n).T

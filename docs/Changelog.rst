@@ -4,11 +4,44 @@ Changelog
 Unreleased
 ----------
 
-- R package
-- Python package
+-  Python package
+-  R package
+
+   -  abess can be used in mlr3extralearners, a package like scikit-learn. Please see `mlr3extralearners <https://github.com/mlr-org/mlr3extralearners/>`__ for usage. 
+
+Version 0.4.7
+-------------
+
+-  R package
+-  Python package
+
+   -  Support no-intercept model for most regressors in ``abess.linear`` with argument ``fit_intercept=False``. We assume that the data has been centered for these models.
+   -  Use `CMake <https://cmake.org/>`__ on compiling to increase scalability.
+
+-  C++
+
+   -  Support limiting beta into a range by clipping method. One application is to perform non-negative fitting.
+   -  Support AUC criterion for Logistic and Multinomial Regression.
+
+Version 0.4.6
+-------------
+
+-  R package
+-  Python package
+
+   -  Support ``score`` function for all GLM estimators.
+   -  Rearrange some arguments to improve legibility. 
+      Please check `here <https://abess.readthedocs.io/en/latest/Python-package/index.html>`__ for the latest API.
+   -  Better docstring, e.g. move important arguments to the front.
+   -  Combine ``metrics.py`` and ``functions.py``.
+
+-  C++
+
+   -  Support the base model for GLM. The Sparse GLM model can be implemented much easilier.
+   -  Re-write logistic, poisson and gamma regression on the basis of GLM base model.
 
 Versions 0.4.2 -- 0.4.5
-----------
+-----------------------
 
 -  R package
 
@@ -17,7 +50,7 @@ Versions 0.4.2 -- 0.4.5
    -  Support ordinal regression
    -  Update README.md to synchronize with the layout change of abess official website. 
 
-- Python package
+-  Python package
 
    -  Fix bugs in sparse principal component analysis
    -  Support ordinal regression
@@ -29,8 +62,9 @@ Versions 0.4.2 -- 0.4.5
    -  Add `estimator check <https://scikit-learn.org/stable/modules/generated/sklearn.utils.estimator_checks.check_estimator.html>`__
       from ``scikit-learn`` into pytest
    -  Refine the configuration in ``setup.py`` to facilitate the source code installation
+   -  Support ``get_params`` and ``set_params`` methods for each model
 
-- C++
+-  C++
 
    -  Support ordinal regression
    -  Fix bugs for multiple-regressors' API
@@ -43,13 +77,13 @@ Versions 0.4.2 -- 0.4.5
       `Junhao Huang <https://github.com/oooo26>`__!
 
 Version 0.4.1
-----------
+-------------
 
 -  R package
 
    -  Support user-specified initial active set.
 
-- Python package
+-  Python package
 
    -  The API name shifts from ``abessXXX`` to ``xxxRegression`` and from ``abessXXX`` to ``SparsePCA``
    -  Improve the PEP8 criteria and ``scikit-learn`` criterion

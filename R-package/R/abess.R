@@ -76,6 +76,11 @@ abess <- function(x, ...) UseMethod("abess")
 #' \code{normalize = 3} for scaling the columns of \code{x} to have \eqn{\sqrt n} norm.
 #' If \code{normalize = NULL}, \code{normalize} will be set \code{1} for \code{"gaussian"} and \code{"mgaussian"},
 #' \code{3} for \code{"cox"}. Default is \code{normalize = NULL}.
+#' @param fit.intercept A boolean value indicating whether to fit an intercept. 
+#' We assume the data has been centered if \code{fit.intercept = FALSE}.
+#' Default: \code{fit.intercept = FALSE}.
+#' @param beta.low A single value specifying the lower bound of \eqn{\beta}. Default is \code{-.Machine$double.xmax}.
+#' @param beta.high A single value specifying the upper bound of \eqn{\beta}. Default is \code{.Machine$double.xmax}.
 #' @param c.max an integer splicing size. Default is: \code{c.max = 2}.
 #' @param weight Observation weights. When \code{weight = NULL},
 #' we set \code{weight = 1} for each observation as default.
@@ -163,7 +168,7 @@ abess <- function(x, ...) UseMethod("abess")
 #' More details about GS is referred to Zhang et al (2021). 
 #' 
 #' It is worthy to note that the parameters \code{newton}, \code{max.newton.iter} and \code{newton.thresh} allows 
-#' user control the parameter estimation in non-guassian models. 
+#' user control the parameter estimation in non-gaussian models. 
 #' The parameter estimation procedure use Newton method or approximated Newton method (only consider the diagonal elements in the Hessian matrix). 
 #' Again, we suggest to use the default values unchanged because the same reason for the parameter \code{c.max}. 
 #' 
@@ -178,8 +183,8 @@ abess <- function(x, ...) UseMethod("abess")
 #' Please see [online vignettes](https://abess-team.github.io/abess/articles/v07-advancedFeatures.html) for more details about the advanced features support by \code{abess}. 
 #' 
 #' @references A polynomial algorithm for best-subset selection problem. Junxian Zhu, Canhong Wen, Jin Zhu, Heping Zhang, Xueqin Wang. Proceedings of the National Academy of Sciences Dec 2020, 117 (52) 33117-33123; \doi{10.1073/pnas.2014241117}
-#' @references Certifiably Polynomial Algorithm for Best Group Subset Selection. Zhang, Yanhang, Junxian Zhu, Jin Zhu, and Xueqin Wang (2021). arXiv preprint arXiv:2104.12576.
-#' @references abess: A Fast Best Subset Selection Library in Python and R. Jin Zhu, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, Junxian Zhu, Xueqin Wang (2021). arXiv preprint arXiv:2110.09697.
+#' @references A Splicing Approach to Best Subset of Groups Selection. Zhang, Yanhang, Junxian Zhu, Jin Zhu, and Xueqin Wang (2023). INFORMS Journal on Computing, 35:1, 104-119. \doi{10.1287/ijoc.2022.1241}
+#' @references abess: A Fast Best-Subset Selection Library in Python and R. Zhu Jin, Xueqin Wang, Liyuan Hu, Junhao Huang, Kangkang Jiang, Yanhang Zhang, Shiyun Lin, and Junxian Zhu. Journal of Machine Learning Research 23, no. 202 (2022): 1-7.
 #' @references Sure independence screening for ultrahigh dimensional feature space. Fan, J. and Lv, J. (2008), Journal of the Royal Statistical Society: Series B (Statistical Methodology), 70: 849-911. \doi{10.1111/j.1467-9868.2008.00674.x}
 #' @references Targeted Inference Involving High-Dimensional Data Using Nuisance Penalized Regression. Qiang Sun & Heping Zhang (2020). Journal of the American Statistical Association, \doi{10.1080/01621459.2020.1737079}
 #' 
@@ -197,6 +202,7 @@ abess <- function(x, ...) UseMethod("abess")
 #' @examples
 #' \donttest{
 #' library(abess)
+#' Sys.setenv("OMP_THREAD_LIMIT" = 2)
 #' n <- 100
 #' p <- 20
 #' support.size <- 3
@@ -303,6 +309,9 @@ abess.default <- function(x,
                           tune.type = c("gic", "ebic", "bic", "aic", "cv"),
                           weight = NULL,
                           normalize = NULL,
+                          fit.intercept = TRUE,
+                          beta.low = -.Machine$double.xmax,
+                          beta.high = .Machine$double.xmax,
                           c.max = 2,
                           support.size = NULL,
                           gs.range = NULL,
@@ -352,10 +361,13 @@ abess.default <- function(x,
     tune.path=tune.path,
     max.newton.iter=max.newton.iter,
     lambda=lambda,
+    beta.low=beta.low,
+    beta.high=beta.high,
     family=family,
     screening.num=screening.num,
     gs.range=gs.range,
     early.stop=early.stop,
+    fit.intercept=fit.intercept,
     weight=weight,
     cov.update=cov.update,
     normalize=normalize,
@@ -373,6 +385,8 @@ abess.default <- function(x,
   x <- data$x
   tune.path <- para$tune.path
   lambda <- para$lambda
+  beta_low <- para$beta_low
+  beta_high <- para$beta_high
   family <- para$family
   gs.range <- para$gs.range
   weight <- para$weight
@@ -410,6 +424,7 @@ abess.default <- function(x,
   y_dim <- para$y_dim
   multi_y <- para$multi_y
   early_stop <- para$early_stop
+  fit_intercept <- para$fit_intercept
   
   result <- abessGLM_API(
     x = x,
@@ -447,7 +462,10 @@ abess.default <- function(x,
     splicing_type = splicing_type,
     sub_search = important_search,
     cv_fold_id = cv_fold_id, 
-    A_init = as.integer(init.active.set)
+    A_init = as.integer(init.active.set),
+    fit_intercept = fit_intercept,
+    beta_low = beta_low,
+    beta_high = beta_high
   )
 
   ## process result
@@ -539,7 +557,7 @@ abess.default <- function(x,
       )
     } else if (family %in% c("multinomial", "ordinal")) {
       result[["beta"]] <- lapply(result[["beta"]], function(x) {
-        Matrix::Matrix(x[, -y_dim], sparse = TRUE, dimnames = list(vn, y_vn[-1]))
+        Matrix::Matrix(x[, -y_dim,drop=FALSE], sparse = TRUE, dimnames = list(vn, y_vn[-1]))
       })
     }
   } else {

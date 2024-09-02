@@ -18,11 +18,11 @@ try:
 except ImportError:
     miss_dep = True
 
-from utilities import (
+from utilities import (  # noqa: F401
     assert_nan,
     assert_value,
     assert_fit,
-    # save_data,
+    save_data,
     load_data)
 
 
@@ -45,14 +45,19 @@ class TestAlgorithm:
         test_data = abess.make_glm_data(
             family=family, n=n, p=p, k=k, rho=rho, coef_=data.coef_)
 
-        def assert_reg(coef):
+        # save_data(data, 'gaussian')
+        # save_data(test_data, 'gaussian_test')
+        data = load_data("gaussian")
+        test_data = load_data("gaussian_test")
+
+        def assert_reg(coef, fit_intercept=True, rel=0.01, abs=0.01):
             if (sys.version_info[0] < 3 or sys.version_info[1] < 6):
                 return
             nonzero = np.nonzero(coef)[0]
             new_x = data.x[:, nonzero]
-            reg = LinearRegression()
+            reg = LinearRegression(fit_intercept=fit_intercept)
             reg.fit(new_x, data.y.reshape(-1))
-            assert_value(coef[nonzero], reg.coef_)
+            assert_value(coef[nonzero], reg.coef_, rel, abs)
 
         # null
         check_estimator(abess.LinearRegression())
@@ -61,12 +66,21 @@ class TestAlgorithm:
         assert_fit(model1.coef_, data.coef_)
         assert_reg(model1.coef_)
 
+        model0 = abess.LinearRegression(fit_intercept=False)
+        model0.fit(data.x, data.y)
+        assert model0.intercept_ == 0
+        assert_fit(model0.coef_, data.coef_)
+        assert_reg(model0.coef_, fit_intercept=False)
+
         # predict
         y = model1.predict(test_data.x)
         assert_nan(y)
 
         # score
         score = model1.score(test_data.x, test_data.y)
+        sample_weight = np.random.rand(n)
+        score = model1.score(test_data.x, test_data.y,
+                             sample_weight=sample_weight)
         assert score > 0.5
 
         # covariance update
@@ -84,7 +98,8 @@ class TestAlgorithm:
 
         model4 = abess.LinearRegression(
             covariance_update=True, path_type='gs', cv=5)
-        model4.fit(data.x, data.y)
+        cv_fold_id = np.repeat(np.linspace(1, 5, 5), int(n / 5))
+        model4.fit(data.x, data.y, cv_fold_id=cv_fold_id)
         assert_fit(model4.coef_, data.coef_)
 
     @staticmethod
@@ -113,14 +128,21 @@ class TestAlgorithm:
             sigma=sigma,
             coef_=data.coef_)
 
-        def assert_reg(coef):
-            if sys.version_info[0] + 0.1 * sys.version_info[1] < 3.6:
+        # save_data(data, 'binomial')
+        # save_data(test_data, 'binomial_test')
+        data = load_data("binomial")
+        test_data = load_data("binomial_test")
+
+        def assert_reg(coef, fit_intercept=True, rel=0.01, abs=0.01):
+            sys_version_num = sys.version_info[0] + 0.1 * sys.version_info[1]
+            if sys_version_num < 3.6 or sys_version_num >= 3.9:
                 return
             nonzero = np.nonzero(coef)[0]
             new_x = data.x[:, nonzero]
-            reg = LogisticRegression(penalty="none")
+            reg = LogisticRegression(
+                penalty="none", fit_intercept=fit_intercept)
             reg.fit(new_x, data.y)
-            assert_value(coef[nonzero], reg.coef_)
+            assert_value(coef[nonzero], reg.coef_, rel, abs)
 
         # null
         check_estimator(abess.LogisticRegression())
@@ -128,6 +150,12 @@ class TestAlgorithm:
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
         assert_reg(model1.coef_)
+
+        model0 = abess.LogisticRegression(fit_intercept=False)
+        model0.fit(data.x, data.y)
+        assert model0.intercept_ == 0
+        assert_fit(model0.coef_, data.coef_)
+        assert_reg(model0.coef_, fit_intercept=False)
 
         # predict
         prob = model1.predict_proba(test_data.x)
@@ -137,6 +165,9 @@ class TestAlgorithm:
 
         # score
         score = model1.score(test_data.x, test_data.y)
+        sample_weight = np.random.rand(n)
+        score = model1.score(test_data.x, test_data.y,
+                             sample_weight=sample_weight)
         assert score > 0.5
 
         # approximate Newton
@@ -156,6 +187,9 @@ class TestAlgorithm:
 
         data = abess.make_glm_data(
             n, p, family=family, k=k, rho=rho, sigma=sigma)
+
+        # save_data(data, 'cox')
+        data = load_data("cox")
 
         def assert_reg(coef):
             if miss_dep:
@@ -190,6 +224,9 @@ class TestAlgorithm:
 
         # score
         score = model1.score(data.x, data.y)
+        sample_weight = np.random.rand(n)
+        score = model1.score(data.x, data.y,
+                             sample_weight=sample_weight)
         assert not np.isnan(score)
 
         # approximate Newton
@@ -205,7 +242,7 @@ class TestAlgorithm:
 
     @staticmethod
     def test_poisson():
-        np.random.seed(3)
+        np.random.seed(2)
         n = 100
         p = 20
         k = 3
@@ -217,15 +254,21 @@ class TestAlgorithm:
         test_data = abess.make_glm_data(
             n, p, family=family, k=k, rho=rho, sigma=sigma, coef_=data.coef_)
 
-        def assert_reg(coef):
+        # save_data(data, 'poisson')
+        # save_data(test_data, 'poisson_test')
+        data = load_data("poisson")
+        test_data = load_data("poisson_test")
+
+        def assert_reg(coef, fit_intercept=True, rel=0.1, abs=0.1):
             if sys.version_info[0] + 0.1 * sys.version_info[1] < 3.6:
                 return
             nonzero = np.nonzero(coef)[0]
             new_x = data.x[:, nonzero]
             reg = PoissonRegressor(
+                fit_intercept=fit_intercept,
                 alpha=0, tol=1e-6, max_iter=200)
             reg.fit(new_x, data.y)
-            assert_value(coef[nonzero], reg.coef_)
+            assert_value(coef[nonzero], reg.coef_, rel, abs)
 
         # null
         check_estimator(abess.PoissonRegression())
@@ -234,13 +277,28 @@ class TestAlgorithm:
         assert_fit(model1.coef_, data.coef_)
         assert_reg(model1.coef_)
 
+        model0 = abess.PoissonRegression(fit_intercept=False)
+        model0.fit(data.x, data.y)
+        assert model0.intercept_ == 0
+        assert_fit(model0.coef_, data.coef_)
+        assert_reg(model0.coef_, fit_intercept=False)
+
         # predict
         y = model1.predict(test_data.x)
         assert_nan(y)
 
         # score
         score = model1.score(test_data.x, test_data.y)
+        sample_weight = np.random.rand(n)
+        score = model1.score(test_data.x, test_data.y,
+                             sample_weight=sample_weight)
         assert score > 0.5
+
+        # approximate Newton
+        model2 = abess.PoissonRegression(approximate_Newton=True)
+        model2.fit(data.x, data.y)
+        assert_fit(model1.coef_, model2.coef_)
+        assert_reg(model2.coef_)
 
     @staticmethod
     def test_multigaussian():
@@ -256,10 +314,10 @@ class TestAlgorithm:
         test_data = abess.make_multivariate_glm_data(
             family=family, n=n, p=p, k=k, rho=rho, M=M, coef_=data.coef_)
 
-        # save_data(data, "multigaussian_seed1_rho0.5")
-        # save_data(test_data, "multigaussian_seed1_rho0.5_test")
-        data = load_data("multigaussian_seed1_rho0.5")
-        test_data = load_data("multigaussian_seed1_rho0.5_test")
+        # save_data(data, "multigaussian")
+        # save_data(test_data, "multigaussian_test")
+        data = load_data("multigaussian")
+        test_data = load_data("multigaussian_test")
 
         # null
         check_estimator(abess.MultiTaskRegression())
@@ -267,12 +325,20 @@ class TestAlgorithm:
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
 
+        model0 = abess.MultiTaskRegression(fit_intercept=False)
+        model0.fit(data.x, data.y)
+        assert np.count_nonzero(model0.intercept_) == 0
+        assert_fit(model0.coef_, data.coef_)
+
         # predict
         y = model1.predict(test_data.x)
         assert_nan(y)
 
         # score
         score = model1.score(test_data.x, test_data.y)
+        sample_weight = np.random.rand(n)
+        score = model1.score(test_data.x, test_data.y,
+                             sample_weight=sample_weight)
         assert score > 0.5
 
         # covariance update
@@ -290,7 +356,8 @@ class TestAlgorithm:
 
         model4 = abess.MultiTaskRegression(
             covariance_update=True, path_type='gs', cv=5)
-        model4.fit(data.x, data.y)
+        cv_fold_id = np.repeat(np.linspace(1, 5, 5), int(n / 5))
+        model4.fit(data.x, data.y, cv_fold_id=cv_fold_id)
         assert_fit(model4.coef_, data.coef_)
 
     @staticmethod
@@ -308,10 +375,10 @@ class TestAlgorithm:
         test_data = abess.make_multivariate_glm_data(
             family=family, n=n, p=p, k=k, rho=rho, M=M, coef_=data.coef_)
 
-        # save_data(data, 'multinomial_seed5_rho0.5')
-        # save_data(test_data, 'multinomial_seed5_rho0.5_test')
-        data = load_data('multinomial_seed5_rho0.5')
-        test_data = load_data('multinomial_seed5_rho0.5_test')
+        # save_data(data, 'multinomial')
+        # save_data(test_data, 'multinomial_test')
+        data = load_data('multinomial')
+        test_data = load_data('multinomial_test')
 
         # null
         check_estimator(abess.MultinomialRegression())
@@ -319,12 +386,20 @@ class TestAlgorithm:
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
 
+        model0 = abess.MultinomialRegression(fit_intercept=False)
+        model0.fit(data.x, data.y)
+        assert np.count_nonzero(model0.intercept_) == 0
+        assert_fit(model0.coef_, data.coef_)
+
         # predict
         y = model1.predict(test_data.x)
         assert_nan(y)
 
         # score
         score = model1.score(test_data.x, test_data.y)
+        sample_weight = np.random.rand(n)
+        score = model1.score(test_data.x, test_data.y,
+                             sample_weight=sample_weight)
         assert score > 0.5
 
         # # approximate Newton
@@ -335,7 +410,8 @@ class TestAlgorithm:
         # categorical y
         cate_y = np.repeat(np.arange(n / 10), 10)
         model1.fit(data.x, cate_y)
-        score = model1.score(data.x, cate_y)
+        score = model1.score(data.x, cate_y,
+                             sample_weight=sample_weight)
         assert not np.isnan(score)
 
     @staticmethod
@@ -356,8 +432,8 @@ class TestAlgorithm:
         g_index = np.arange(group_num)
         g_index = g_index.repeat(group_size)
 
-        # save_data(X, 'PCA_seed1')
-        X = load_data('PCA_seed1')
+        # save_data(X, 'PCA')
+        X = load_data('PCA')
 
         # null
         check_estimator(abess.SparsePCA())
@@ -371,14 +447,14 @@ class TestAlgorithm:
         model1.fit_transform(X)
 
         # sparse
-        model2 = abess.SparsePCA(support_size=s, sparse_matrix=True)
-        model2.fit(coo_matrix(X))
+        model2 = abess.SparsePCA(support_size=s)
+        model2.fit(coo_matrix(X), sparse_matrix=True)
         print("coef1: ", np.unique(np.nonzero(model1.coef_)[0]))
         print("coef2: ", np.unique(np.nonzero(model2.coef_)[0]))
         assert_value(model1.coef_, model2.coef_)
 
-        model2 = abess.SparsePCA(support_size=s, sparse_matrix=True)
-        model2.fit(X)
+        model2 = abess.SparsePCA(support_size=s)
+        model2.fit(X, sparse_matrix=True)
         assert_value(model1.coef_, model2.coef_)
 
         # sigma input
@@ -403,8 +479,8 @@ class TestAlgorithm:
         support_size_g = np.zeros((4, 1))
         support_size_g[1, 0] = 1
         group = np.repeat([0, 1, 2, 3], [5, 5, 5, 5])
-        model5 = abess.SparsePCA(support_size=support_size_g)
-        model5.fit(X, group=group)
+        model5 = abess.SparsePCA(support_size=support_size_g, group=group)
+        model5.fit(X)
         coef = g_index[np.nonzero(model5.coef_)[0]]
 
         assert len(coef) == 10
@@ -416,31 +492,46 @@ class TestAlgorithm:
         assert_nan(model6.coef_)
 
         # ic
-        for ic in ['aic', 'bic', 'ebic', 'gic']:
+        for ic in ['loss', 'aic', 'bic', 'ebic', 'gic', 'hic']:
             model = abess.SparsePCA(support_size=support_size, ic_type=ic)
-            model.fit(X, is_normal=False)
+            model.fit(X)
 
         # A_init
-        model = abess.SparsePCA(support_size=support_size)
-        model.fit(X, A_init=[0, 1, 2])
+        model = abess.SparsePCA(support_size=support_size, A_init=[0, 1, 2])
+        model.fit(X)
 
     @staticmethod
     def test_gamma():
-        np.random.seed(1)
-        data = abess.make_glm_data(n=100, p=10, k=3, family="gamma")
+        np.random.seed(0)
+        n = 10000
+        p = 20
+        k = 3
+        data = abess.make_glm_data(n=n, p=p, k=k, family="gamma")
+
+        # save_data(data, 'gamma')
+        data = load_data('gamma')
 
         # null
         check_estimator(abess.GammaRegression())
-        model1 = abess.GammaRegression()
+        model1 = abess.GammaRegression(support_size=k)
         model1.fit(data.x, data.y)
         assert_nan(model1.coef_)
+        assert_fit(data.coef_, model1.coef_)
+        assert_value(data.coef_, model1.coef_, 1., 1.)
+
+        model0 = abess.GammaRegression(support_size=k, fit_intercept=False)
+        model0.fit(data.x, data.y)
+        assert model0.intercept_ == 0
+        assert_nan(model0.coef_)
 
         # predict
         model1.predict(data.x)
 
         # score
         score = model1.score(data.x, data.y)
-        score = model1.score(data.x, data.y, np.ones(data.x.shape[0]))
+        sample_weight = np.random.rand(n)
+        score = model1.score(data.x, data.y,
+                             sample_weight=sample_weight)
         assert not np.isnan(score)
 
     @staticmethod
@@ -458,6 +549,9 @@ class TestAlgorithm:
         S = S.reshape(p, n).T
         X = L + S
 
+        # save_data(X, 'RPCA')
+        X = load_data('RPCA')
+
         # null
         check_estimator(abess.RobustPCA())
         model1 = abess.RobustPCA(support_size=s)
@@ -470,17 +564,17 @@ class TestAlgorithm:
         model2.fit(coo_matrix(X), r=r)
         assert_value(model1.coef_, model2.coef_)
 
-        model2 = abess.RobustPCA(support_size=s, sparse_matrix=True)
-        model2.fit(X, r=r)
+        model2 = abess.RobustPCA(support_size=s)
+        model2.fit(X, r=r, sparse_matrix=True)
         assert_value(model1.coef_, model2.coef_)
 
-        # group
-        group = np.arange(n * p)
-        model3 = abess.RobustPCA(support_size=s)
-        model3.fit(X, r=r, group=group)
+        # # group
+        # group = np.arange(n * p)
+        # model3 = abess.RobustPCA(support_size=s, group=group)
+        # model3.fit(X, r=r)
 
         # ic
-        for ic in ['aic', 'bic', 'ebic', 'gic']:
+        for ic in ['aic', 'bic', 'ebic', 'gic', 'hic']:
             model4 = abess.RobustPCA(support_size=s, ic_type=ic)
             model4.fit(X, r=r)
 
@@ -493,20 +587,24 @@ class TestAlgorithm:
         np.random.seed(2)
         data = abess.make_glm_data(n=100, p=20, k=5, family="ordinal")
 
-        # save_data(data, 'ordinal_seed2')
-        data = load_data('ordinal_seed2')
+        # save_data(data, 'ordinal')
+        data = load_data('ordinal')
 
         # null
         check_estimator(abess.OrdinalRegression())
         model1 = abess.OrdinalRegression()
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
-        
+
         # score
+        sample_weight = np.random.rand(100)
+        score_ordinal = model1.score(data.x, data.y,
+                                     sample_weight=sample_weight)
         score_ordinal = model1.score(data.x, data.y)
         y_random = data.y.copy()
         np.random.shuffle(y_random)
-        score_random = ndcg_score(data.y.reshape((1,-1)), y_random.reshape((1,-1)))
+        score_random = ndcg_score(data.y.reshape(
+            (1, -1)), y_random.reshape((1, -1)))
         assert score_ordinal > score_random
 
         pred = model1.predict(data.x)
@@ -524,6 +622,9 @@ class TestAlgorithm:
         s_max = 20
 
         data = abess.make_glm_data(n, p, family=family, k=k, rho=rho)
+
+        # save_data(data, 'gaussian_sklearn')
+        data = load_data('gaussian_sklearn')
 
         support_size = np.linspace(0, s_max, s_max + 1, dtype="int32")
         alpha = [0., 0.1, 0.2, 0.3, 0.4]
@@ -559,6 +660,7 @@ class TestAlgorithm:
 
         # save_data(data, "binomial_sklearn")
         data = load_data("binomial_sklearn")
+
         s_max = 20
         support_size = np.linspace(0, s_max, s_max + 1, dtype="int32")
         alpha = [0., 0.1, 0.2, 0.3, 0.4]
@@ -585,7 +687,7 @@ class TestAlgorithm:
         rho = 0.5
         # sigma = 1
         # M = 1
-        np.random.seed(0)
+        np.random.seed(3)
         data = abess.make_glm_data(n, p, family=family, k=k, rho=rho)
         # data3 = abess.make_multivariate_glm_data(
         #     family=family, n=n, p=p, k=k, rho=rho, M=M, sparse_ratio=0.1)

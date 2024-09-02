@@ -81,8 +81,7 @@ using namespace Rcpp;
  * s_max), where the specific support size to be considered is determined by golden section.
  * @param is_warm_start                 When tuning the optimal parameter combination, whether to use the last solution
  * as a warm start to accelerate the iterative convergence of the splicing algorithm.
- * @param ic_type                       The type of criterion for choosing the support size. Available options are
- * "gic", "ebic", "bic", "aic".
+ * @param ic_type                       The type of criterion for choosing the support size.
  * @param Kfold                         The folds number to use the Cross-validation method. If Kfold=1,
  * Cross-validation will not be used.
  * @param sequence                      An integer vector representing the alternative support sizes. Only used for
@@ -113,7 +112,8 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
                   Eigen::VectorXi g_index, Eigen::VectorXi always_select, int primary_model_fit_max_iter,
                   double primary_model_fit_epsilon, bool early_stop, bool approximate_Newton, int thread,
                   bool covariance_update, bool sparse_matrix, int splicing_type, int sub_search,
-                  Eigen::VectorXi cv_fold_id, Eigen::VectorXi A_init);
+                  Eigen::VectorXi cv_fold_id, Eigen::VectorXi A_init, bool fit_intercept, double beta_low,
+                  double beta_high);
 
 List abessPCA_API(Eigen::MatrixXd x, int n, int p, int normalize_type, Eigen::VectorXd weight, Eigen::MatrixXd sigma,
                   int max_iter, int exchange_num, int path_type, bool is_warm_start, int ic_type, double ic_coef,

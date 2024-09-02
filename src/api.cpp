@@ -36,7 +36,8 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
                   Eigen::VectorXi g_index, Eigen::VectorXi always_select, int primary_model_fit_max_iter,
                   double primary_model_fit_epsilon, bool early_stop, bool approximate_Newton, int thread,
                   bool covariance_update, bool sparse_matrix, int splicing_type, int sub_search,
-                  Eigen::VectorXi cv_fold_id, Eigen::VectorXi A_init) {
+                  Eigen::VectorXi cv_fold_id, Eigen::VectorXi A_init, bool fit_intercept, double beta_low,
+                  double beta_high) {
 #ifdef _OPENMP
     // Eigen::initParallel();
     int max_thread = omp_get_max_threads();
@@ -65,47 +66,55 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->covariance_update = covariance_update;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_dense[i] = temp;
             } else if (model_type == 2) {
                 abessLogistic<Eigen::MatrixXd> *temp = new abessLogistic<Eigen::MatrixXd>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_dense[i] = temp;
             } else if (model_type == 3) {
                 abessPoisson<Eigen::MatrixXd> *temp = new abessPoisson<Eigen::MatrixXd>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_dense[i] = temp;
             } else if (model_type == 4) {
                 abessCox<Eigen::MatrixXd> *temp = new abessCox<Eigen::MatrixXd>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_dense[i] = temp;
             } else if (model_type == 5) {
                 abessMLm<Eigen::MatrixXd> *temp = new abessMLm<Eigen::MatrixXd>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->covariance_update = covariance_update;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_mul_dense[i] = temp;
             } else if (model_type == 6) {
                 abessMultinomial<Eigen::MatrixXd> *temp = new abessMultinomial<Eigen::MatrixXd>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_mul_dense[i] = temp;
             } else if (model_type == 8) {
                 abessGamma<Eigen::MatrixXd> *temp = new abessGamma<Eigen::MatrixXd>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_dense[i] = temp;
             } else if (model_type == 9) {
                 abessOrdinal<Eigen::MatrixXd> *temp = new abessOrdinal<Eigen::MatrixXd>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_mul_dense[i] = temp;
             }
         } else {
@@ -114,51 +123,62 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->covariance_update = covariance_update;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_sparse[i] = temp;
             } else if (model_type == 2) {
                 abessLogistic<Eigen::SparseMatrix<double>> *temp = new abessLogistic<Eigen::SparseMatrix<double>>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_sparse[i] = temp;
             } else if (model_type == 3) {
                 abessPoisson<Eigen::SparseMatrix<double>> *temp = new abessPoisson<Eigen::SparseMatrix<double>>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_sparse[i] = temp;
             } else if (model_type == 4) {
                 abessCox<Eigen::SparseMatrix<double>> *temp = new abessCox<Eigen::SparseMatrix<double>>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_sparse[i] = temp;
             } else if (model_type == 5) {
                 abessMLm<Eigen::SparseMatrix<double>> *temp = new abessMLm<Eigen::SparseMatrix<double>>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->covariance_update = covariance_update;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_mul_sparse[i] = temp;
             } else if (model_type == 6) {
                 abessMultinomial<Eigen::SparseMatrix<double>> *temp = new abessMultinomial<Eigen::SparseMatrix<double>>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_mul_sparse[i] = temp;
             } else if (model_type == 8) {
                 abessGamma<Eigen::SparseMatrix<double>> *temp = new abessGamma<Eigen::SparseMatrix<double>>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
                 temp->approximate_Newton = approximate_Newton;
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_uni_sparse[i] = temp;
             } else if (model_type == 9) {
                 abessOrdinal<Eigen::SparseMatrix<double>> *temp = new abessOrdinal<Eigen::SparseMatrix<double>>(
                     algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon,
                     is_warm_start, exchange_num, always_select, splicing_type, sub_search);
+                temp->fit_intercept = fit_intercept;
                 algorithm_list_mul_sparse[i] = temp;
             }
         }
     }
+
+    // suppose X has been centered for no-intercept model
+    if (normalize_type > 0 && !fit_intercept) normalize_type = 3;
 
     // parameter list
     Parameters parameters(sequence, lambda_seq, s_min, s_max);
@@ -171,12 +191,12 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
             out_result = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::MatrixXd>(
                 x, y_vec, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type, ic_coef,
                 Kfold, parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init,
-                algorithm_list_uni_dense);
+                beta_low, beta_high, algorithm_list_uni_dense);
         } else {
             out_result = abessWorkflow<Eigen::MatrixXd, Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd>(
                 x, y, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type, ic_coef, Kfold,
-                parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init,
-                algorithm_list_mul_dense);
+                parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init, beta_low,
+                beta_high, algorithm_list_mul_dense);
         }
     } else {
         Eigen::SparseMatrix<double> sparse_x(n, p);
@@ -201,12 +221,12 @@ List abessGLM_API(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p, int normal
             out_result = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::SparseMatrix<double>>(
                 sparse_x, y_vec, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type,
                 ic_coef, Kfold, parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id,
-                A_init, algorithm_list_uni_sparse);
+                A_init, beta_low, beta_high, algorithm_list_uni_sparse);
         } else {
             out_result = abessWorkflow<Eigen::MatrixXd, Eigen::MatrixXd, Eigen::VectorXd, Eigen::SparseMatrix<double>>(
                 sparse_x, y, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type, ic_coef,
                 Kfold, parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init,
-                algorithm_list_mul_sparse);
+                beta_low, beta_high, algorithm_list_mul_sparse);
         }
     }
 
@@ -286,6 +306,7 @@ List abessPCA_API(Eigen::MatrixXd x, int n, int p, int normalize_type, Eigen::Ve
 #endif
     List out_result_next;
     int num = 0;
+    double beta_low = -DBL_MAX, beta_high = DBL_MAX;
 
     if (!sparse_matrix) {
         while (num++ < pca_num) {
@@ -305,7 +326,7 @@ List abessPCA_API(Eigen::MatrixXd x, int n, int p, int normalize_type, Eigen::Ve
             out_result_next = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::MatrixXd>(
                 x, y_vec, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type, ic_coef,
                 Kfold, parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init,
-                algorithm_list_uni_dense);
+                beta_low, beta_high, algorithm_list_uni_dense);
             Eigen::VectorXd beta_next;
 #ifdef R_BUILD
             beta_next = out_result_next["beta"];
@@ -387,7 +408,7 @@ List abessPCA_API(Eigen::MatrixXd x, int n, int p, int normalize_type, Eigen::Ve
             out_result_next = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::SparseMatrix<double>>(
                 sparse_x, y_vec, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type,
                 ic_coef, Kfold, parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id,
-                A_init, algorithm_list_uni_sparse);
+                A_init, beta_low, beta_high, algorithm_list_uni_sparse);
             Eigen::VectorXd beta_next;
 #ifdef R_BUILD
             beta_next = out_result_next["beta"];
@@ -467,6 +488,7 @@ List abessRPCA_API(Eigen::MatrixXd x, int n, int p, int max_iter, int exchange_n
     int model_type = 10, algorithm_type = 6;
     int Kfold = 1;
     int normalize_type = 0;
+    double beta_low = -DBL_MAX, beta_high = DBL_MAX;
     Eigen::VectorXi cv_fold_id = Eigen::VectorXi::Zero(0);
     Eigen::VectorXd weight = Eigen::VectorXd::Ones(n);
     Eigen::VectorXd y_vec = Eigen::VectorXd::Zero(n);
@@ -500,8 +522,8 @@ List abessRPCA_API(Eigen::MatrixXd x, int n, int p, int max_iter, int exchange_n
     if (!sparse_matrix) {
         out_result = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::MatrixXd>(
             x, y_vec, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type, ic_coef, Kfold,
-            parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init,
-            algorithm_list_uni_dense);
+            parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init, beta_low,
+            beta_high, algorithm_list_uni_dense);
 
     } else {
         Eigen::SparseMatrix<double> sparse_x(n, p);
@@ -522,8 +544,8 @@ List abessRPCA_API(Eigen::MatrixXd x, int n, int p, int max_iter, int exchange_n
 
         out_result = abessWorkflow<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::SparseMatrix<double>>(
             sparse_x, y_vec, n, p, normalize_type, weight, algorithm_type, path_type, is_warm_start, ic_type, ic_coef,
-            Kfold, parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init,
-            algorithm_list_uni_sparse);
+            Kfold, parameters, screening_size, g_index, early_stop, thread, sparse_matrix, cv_fold_id, A_init, beta_low,
+            beta_high, algorithm_list_uni_sparse);
     }
 
     for (int i = 0; i < algorithm_list_size; i++) {

@@ -97,6 +97,7 @@
 #' @examples
 #' \donttest{
 #' library(abess)
+#' Sys.setenv("OMP_THREAD_LIMIT" = 2)
 #'
 #' ## predictor matrix input:
 #' head(USArrests)
@@ -235,7 +236,7 @@ abesspca <- function(x,
     exchange_num = c_max,
     path_type = path_type,
     is_warm_start = warm.start,
-    ic_type = 1,
+    ic_type = ic_type,
     ic_coef = ic_scale,
     Kfold = nfolds,
     sequence = s_list_bool,

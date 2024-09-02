@@ -45,6 +45,14 @@ class TestCheck:
         else:
             assert False
 
+        try:
+            model = abess.LinearRegression(cv=2, cv_score='other')
+            model.fit([[1], [2]], [1, 2])
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
         # exchange_num
         try:
             model = abess.LinearRegression(exchange_num=-1)
@@ -161,7 +169,7 @@ class TestCheck:
             assert False
 
         try:
-            model.fit([[1, 1, 1]], [1], weight=['c'])
+            model.fit([[1, 1, 1]], [1], sample_weight=['c'])
         except ValueError as e:
             print(e)
         else:
@@ -177,14 +185,16 @@ class TestCheck:
 
         # A_init
         try:
-            model.fit([[1]], [1], A_init=[[0]])
+            model = abess.LinearRegression(A_init=[[0]])
+            model.fit([[1]], [1])
         except ValueError as e:
             print(e)
         else:
             assert False
 
         try:
-            model.fit([[1]], [1], A_init=[2])
+            model = abess.LinearRegression(A_init=[2])
+            model.fit([[1]], [1])
         except ValueError as e:
             print(e)
         else:
@@ -194,6 +204,15 @@ class TestCheck:
         try:
             model = abess.LinearRegression(important_search=-1)
             model.fit([[1]], [1])
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
+        # clipping
+        try:
+            model = abess.LinearRegression()
+            model.fit([[1]], [1], beta_low=1, beta_high=0)
         except ValueError as e:
             print(e)
         else:
@@ -223,28 +242,30 @@ class TestCheck:
             assert False
 
         try:
-            model.fit([[1, 1, 1]], [1], weight=[1, 2])
+            model.fit([[1, 1, 1]], [1], sample_weight=[1, 2])
         except ValueError as e:
             print(e)
         else:
             assert False
 
         try:
-            model.fit([[1, 1, 1]], [1], weight=[[1, 2, 3]])
+            model.fit([[1, 1, 1]], [1], sample_weight=[[1, 2, 3]])
         except ValueError as e:
             print(e)
         else:
             assert False
 
         try:
-            model.fit([[1, 1, 1]], [1], group=[1])
+            model1 = abess.LinearRegression(group=[1])
+            model1.fit([[1, 1, 1]], [1])
         except ValueError as e:
             print(e)
         else:
             assert False
 
         try:
-            model.fit([[1, 1, 1]], [1], group=[[1, 2, 3]])
+            model1 = abess.LinearRegression(group=[[1, 2, 3]])
+            model1.fit([[1, 1, 1]], [1])
         except ValueError as e:
             print(e)
         else:
@@ -281,6 +302,22 @@ class TestCheck:
         else:
             assert False
 
+        try:
+            data = abess.make_glm_data(
+                n=100, p=10, k=3, family='gaussian', corr_type="null")
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
+        try:
+            data = abess.make_multivariate_glm_data(
+                n=100, p=10, k=3, family='gaussian', corr_type="null")
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
         # lack of necessary parameter
         try:
             model = abess.LinearRegression()
@@ -294,6 +331,15 @@ class TestCheck:
             model = abess.LinearRegression()
             model.fit(y=[1])
         except ValueError as e:
+            print(e)
+        else:
+            assert False
+
+        # constant column
+        try:
+            model = abess.LinearRegression()
+            model.fit(X=[[1, 1], [1, 2]], y=[1, 2])
+        except OverflowError as e:
             print(e)
         else:
             assert False
@@ -351,14 +397,16 @@ class TestCheck:
             assert False
 
         try:
-            model.fit([[1]], group=[1, 2])
+            model1 = abess.SparsePCA(group=[1, 2])
+            model1.fit([[1]])
         except ValueError as e:
             print(e)
         else:
             assert False
 
         try:
-            model.fit([[1]], group=[[1]])
+            model1 = abess.SparsePCA(group=[[1]])
+            model1.fit([[1]])
         except ValueError as e:
             print(e)
         else:
@@ -424,21 +472,6 @@ class TestCheck:
         else:
             assert False
 
-        # A_init
-        try:
-            model.fit([[1]], A_init=[[0]])
-        except ValueError as e:
-            print(e)
-        else:
-            assert False
-
-        try:
-            model.fit([[1]], A_init=[2])
-        except ValueError as e:
-            print(e)
-        else:
-            assert False
-
         # invalid sigma
         try:
             model.fit(Sigma=[[1, 0], [1, 0]])
@@ -454,10 +487,35 @@ class TestCheck:
         else:
             assert False
 
+        # A_init
+        try:
+            model1 = abess.SparsePCA(A_init=[[0]])
+            model1.fit([[1]])
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
+        try:
+            model1 = abess.SparsePCA(A_init=[2])
+            model1.fit([[1]])
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
         # invalid arg
         try:
             model1 = abess.SparsePCA(ic_type='other')
             model1.fit([[1]])
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
+        try:
+            model1 = abess.SparsePCA(cv=2, cv_score='other')
+            model1.fit([[1], [2]])
         except ValueError as e:
             print(e)
         else:
@@ -488,16 +546,16 @@ class TestCheck:
             assert False
 
         try:
-            model1 = abess.SparsePCA()
-            model.fit([[1]], A_init=[[0, 1, 2]])
+            model1 = abess.SparsePCA(A_init=[[0, 1, 2]])
+            model1.fit([[1]])
         except ValueError as e:
             print(e)
         else:
             assert False
 
         try:
-            model1 = abess.SparsePCA()
-            model.fit([[1]], A_init=[-1])
+            model1 = abess.SparsePCA(A_init=[-1])
+            model1.fit([[1]])
         except ValueError as e:
             print(e)
         else:
@@ -521,21 +579,6 @@ class TestCheck:
         else:
             assert False
 
-        # A_init
-        try:
-            model.fit([[1]], r=1, A_init=[[0]])
-        except ValueError as e:
-            print(e)
-        else:
-            assert False
-
-        try:
-            model.fit([[1]], r=1, A_init=[2])
-        except ValueError as e:
-            print(e)
-        else:
-            assert False
-
         # incompatible shape
         try:
             model.fit([1], r=1)
@@ -551,14 +594,32 @@ class TestCheck:
         else:
             assert False
 
+        # A_init
         try:
-            model.fit([[1]], r=1, group=[1, 2])
+            model1 = abess.RobustPCA(A_init=[[0]])
+            model1.fit([[1]], r=1)
+        except ValueError as e:
+            print(e)
+        else:
+            assert False
+
+        try:
+            model1 = abess.RobustPCA(A_init=[2])
+            model1.fit([[1]], r=1)
         except ValueError as e:
             print(e)
         else:
             assert False
 
         # invalid arg
+        # try:
+        #     model1 = abess.RobustPCA(group=[1, 2])
+        #     model1.fit([[1]], r=1)
+        # except ValueError as e:
+        #     print(e)
+        # else:
+        #     assert False
+
         try:
             model1 = abess.RobustPCA(ic_type='other')
             model1.fit([[1]], r=1)

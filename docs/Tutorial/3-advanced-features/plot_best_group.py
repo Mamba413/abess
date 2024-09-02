@@ -58,10 +58,12 @@ print('group index:\n', group)
 # %%
 # Then we can set the ``group`` argument in function. Besides, the
 # ``support_size`` here indicates the number of groups, instead of the
-# number of variables.
+# number of variables. Similarly, ``always_select``, ``A_init`` and other
+# parameters related to "index" should also be group index, instead of
+# the variable one.
 
-model1 = LinearRegression(support_size=range(3))
-model1.fit(data.x, data.y, group=group)
+model1 = LinearRegression(support_size=range(3), group=group)
+model1.fit(data.x, data.y)
 print('coefficients:\n', model1.coef_)
 
 
@@ -75,7 +77,7 @@ model2.fit(data.x, data.y)
 print('coefficients:\n', model2.coef_)
 
 # %%
-# The result from a model without a given group structure omits two predictors 
+# The result from a model without a given group structure omits three predictors 
 # belonging to the active set.
 # The ``abess`` R package also supports best group subset selection.
 #

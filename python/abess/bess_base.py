@@ -1,3 +1,4 @@
+import sys
 import numbers
 import warnings
 import numpy as np
@@ -14,17 +15,6 @@ class bess_base(BaseEstimator):
     r"""
     Parameters
     ----------
-    max_iter : int, optional, default=20
-        Maximum number of iterations taken for the
-        splicing algorithm to converge.
-        Due to the limitation of loss reduction, the splicing
-        algorithm must be able to converge.
-        The number of iterations is only to simplify the implementation.
-    is_warm_start : bool, optional, default=True
-        When tuning the optimal parameter combination,
-        whether to use the last solution
-        as a warm start to accelerate the iterative
-        convergence of the splicing algorithm.
     path_type : {"seq", "gs"}, optional, default="seq"
         The method to be used to select the optimal support size.
 
@@ -43,8 +33,31 @@ class bess_base(BaseEstimator):
         The lower bound of golden-section-search for sparsity searching.
     s_max : int, optional, default=min(n, int(n/(log(log(n))log(p)))).
         The higher bound of golden-section-search for sparsity searching.
-    ic_type : {'aic', 'bic', 'gic', 'ebic'}, optional, default='ebic'
-        The type of criterion for choosing the support size.
+    group : int, optional, default=np.ones(p)
+        The group index for each variable.
+    alpha : float, optional, default=0
+        Constant that multiples the L2 term in loss function, controlling
+        regularization strength. It should be non-negative.
+
+        - If alpha = 0, it indicates ordinary least square.
+
+    fit_intercept : bool, optional, default=True
+        Whether to consider intercept in the model. We assume that the data
+        has been centered if fit_intercept=False.
+
+    ic_type : {'aic', 'bic', 'gic', 'ebic', 'loss'}, optional, default='ebic'
+        The type of criterion for choosing the support size if `cv=1`. 
+        The full name of each option:
+        
+        - 'aic': Akaike information criterion
+        - 'bic': Bayesian information criterion
+        - 'gic': Generalized information criterion (see [2-4]). It refers to special information criterion (SIC) in [1].
+        - 'ebic': Extended Bayesian information criterion [5]
+        - 'loss': Loss value
+
+    ic_coef : float, optional, default=1.0
+        Constant that controls the regularization strength
+        on chosen information criterion.
     cv : int, optional, default=1
         The folds number when use the cross-validation method.
 
@@ -52,11 +65,38 @@ class bess_base(BaseEstimator):
         - If cv>1, support size will be chosen by CV's test loss,
           instead of IC.
 
+    cv_score : {'test_loss', ...}, optional, default='test_loss'
+        The score used on test data for CV.
+
+        - All methods support {'test_loss'}.
+        - LogisticRegression also supports {'roc_auc'}.
+        - MultinomialRegression also supports {'roc_auc_ovo', 'roc_auc_ovr'},
+          which indicate "One vs One/Rest" algorithm, respectively.
+
     thread : int, optional, default=1
         Max number of multithreads.
 
         - If thread = 0, the maximum number of threads supported by
           the device will be used.
+
+    A_init : array-like, optional, default=None
+        Initial active set before the first splicing.
+    always_select : array-like, optional, default=None
+        An array contains the indexes of variables
+        we want to consider in the model. For group selection,
+        it should be the indexes of groups (start from 0).
+
+    max_iter : int, optional, default=20
+        Maximum number of iterations taken for the
+        splicing algorithm to converge.
+        Due to the limitation of loss reduction, the splicing
+        algorithm must be able to converge.
+        The number of iterations is only to simplify the implementation.
+    is_warm_start : bool, optional, default=True
+        When tuning the optimal parameter combination,
+        whether to use the last solution
+        as a warm start to accelerate the iterative
+        convergence of the splicing algorithm.
 
     screening_size : int, optional, default=-1
         The number of variables remaining after screening.
@@ -67,9 +107,6 @@ class bess_base(BaseEstimator):
         - If screening_size=0, screening_size will be set as
           :math:`\\min(p, int(n / (\\log(\\log(n))\\log(p))))`.
 
-    always_select : array-like, optional, default=[]
-        An array contains the indexes of variables
-        we want to consider in the model.
     primary_model_fit_max_iter : int, optional, default=10
         The maximal number of iteration for primary_model_fit.
     primary_model_fit_epsilon : float, optional, default=1e-08
@@ -80,55 +117,58 @@ class bess_base(BaseEstimator):
     coef_ : array-like, shape(p_features, ) or (p_features, M_responses)
         Estimated coefficients for the best subset selection problem.
     intercept_ : float or array-like, shape(M_responses,)
-        The intercept in the model.
-    ic_ : float
-        If cv=1, it stores the score under chosen information criterion.
-    test_loss_ : float
-        If cv>1, it stores the test loss under cross-validation.
+        The intercept in the model when fit_intercept=True.
     train_loss_ : float
         The loss on training data.
+    eval_loss_ : float
+
+        - If cv=1, it stores the score under chosen information criterion.
+        - If cv>1, it stores the test loss under cross-validation.
 
     References
     ----------
-    - Junxian Zhu, Canhong Wen, Jin Zhu, Heping Zhang, and Xueqin Wang.
-      A polynomial algorithm for best-subset selection problem.
-      Proceedings of the National Academy of Sciences,
-      117(52):33117-33123, 2020.
+    - [1] Zhu, J., Wen, C., Zhu, J., Zhang, H., & Wang, X. (2020). A polynomial algorithm for best-subset selection problem. Proceedings of the National Academy of Sciences, 117(52), 33117-33123.
+    - [2] Tang, B., Zhu, J., Zhu, J., Wang, X., & Zhang, H. (2023). A Consistent and Scalable Algorithm for Best Subset Selection in Single Index Models. arXiv preprint arXiv:2309.06230.
+    - [3] Zhu, J., Zhu, J., Tang, B., Chen, X., Lin, H., & Wang, X. (2023). Best-subset selection in generalized linear models: A fast and consistent algorithm via splicing technique. arXiv preprint arXiv:2308.00251.
+    - [4] Zhang, Y., Zhu, J., Zhu, J., & Wang, X. (2023). A splicing approach to best subset of groups selection. INFORMS Journal on Computing, 35(1), 104-119.
+    - [5] Chen, J., & Chen, Z. (2008). Extended Bayesian information criteria for model selection with large model spaces. Biometrika, 95(3), 759-771.
     """
 
     # attributes
     coef_ = None
     intercept_ = None
-    ic_ = 0
     train_loss_ = 0
-    test_loss_ = 0
+    eval_loss_ = 0
 
     def __init__(
         self,
         algorithm_type,
         model_type,
         normalize_type,
-        path_type,
-        max_iter=20,
-        exchange_num=5,
-        is_warm_start=True,
+        path_type="seq",
         support_size=None,
-        alpha=None,
         s_min=None,
         s_max=None,
+        group=None,
+        alpha=None,
+        fit_intercept=True,
         ic_type="ebic",
         ic_coef=1.0,
         cv=1,
-        screening_size=-1,
+        cv_score="test_loss",
+        thread=1,
+        A_init=None,
         always_select=None,
+        max_iter=20,
+        exchange_num=5,
+        is_warm_start=True,
+        splicing_type=0,
+        important_search=0,
+        screening_size=-1,
         primary_model_fit_max_iter=10,
         primary_model_fit_epsilon=1e-8,
         approximate_Newton=False,
-        thread=1,
         covariance_update=False,
-        sparse_matrix=False,
-        splicing_type=0,
-        important_search=0,
         # lambda_min=None, lambda_max=None,
         # early_stop=False, n_lambda=100,
         baseline_model=None,
@@ -143,16 +183,20 @@ class bess_base(BaseEstimator):
         self.is_warm_start = is_warm_start
         self.support_size = support_size
         self.alpha = alpha
+        self.fit_intercept = fit_intercept
         self.n_features_in_: int
         self.n_iter_: int
         self.s_min = s_min
         self.s_max = s_max
+        self.A_init = A_init
+        self.group = group
         # self.lambda_min = None
         # self.lambda_max = None
         # self.n_lambda = 100
         self.ic_type = ic_type
         self.ic_coef = ic_coef
         self.cv = cv
+        self.cv_score = cv_score
         self.screening_size = screening_size
         self.always_select = always_select
         self.primary_model_fit_max_iter = primary_model_fit_max_iter
@@ -161,7 +205,6 @@ class bess_base(BaseEstimator):
         self.approximate_Newton = approximate_Newton
         self.thread = thread
         self.covariance_update = covariance_update
-        self.sparse_matrix = sparse_matrix
         self.splicing_type = splicing_type
         self.important_search = important_search
         self.baseline_model = baseline_model
@@ -172,10 +215,11 @@ class bess_base(BaseEstimator):
             X=None,
             y=None,
             is_normal=True,
-            weight=None,
-            group=None,
+            sample_weight=None,
             cv_fold_id=None,
-            A_init=None):
+            sparse_matrix=False,
+            beta_low=None,
+            beta_high=None):
         r"""
         The fit function is used to transfer
         the information of data and return the fit result.
@@ -199,13 +243,16 @@ class bess_base(BaseEstimator):
         is_normal : bool, optional, default=True
             whether normalize the variables array
             before fitting the algorithm.
-        weight : array-like, shape (n_samples,), optional, default=np.ones(n)
+        sample_weight : array-like, shape (n_samples,), optional
             Individual weights for each sample. Only used for is_weight=True.
-        group : int, optional, default=np.ones(p)
-            The group index for each variable.
-        cv_fold_id: array-like, shape (n_samples,), optional, default=None
+            Default=np.ones(n).
+        cv_fold_id : array-like, shape (n_samples,), optional, default=None
             An array indicates different folds in CV.
             Samples in the same fold should be given the same number.
+        sparse_matrix : bool, optional, default=False
+            Set as True to treat X as sparse matrix during fitting.
+            It would be automatically set as True when X has the
+            sparse matrix type defined in scipy.sparse.
         """
 
         # Check that X and y have correct shape
@@ -220,7 +267,7 @@ class bess_base(BaseEstimator):
         if isinstance(X, (list, np.ndarray, np.matrix, pd.DataFrame,
                       coo_matrix, csr_matrix)):
             if isinstance(X, (coo_matrix, csr_matrix)):
-                self.sparse_matrix = True
+                sparse_matrix = True
 
             # Sort for Cox
             if self.model_type == "Cox":
@@ -305,24 +352,48 @@ class bess_base(BaseEstimator):
         else:
             raise ValueError("path_type should be \'seq\' or \'gs\'")
 
-        # Ic_type: aic, bic, gic, ebic
-        if self.ic_type == "aic":
-            ic_type_int = 1
-        elif self.ic_type == "bic":
-            ic_type_int = 2
-        elif self.ic_type == "gic":
-            ic_type_int = 3
-        elif self.ic_type == "ebic":
-            ic_type_int = 4
-        else:
-            raise ValueError(
-                "ic_type should be \"aic\", \"bic\", \"ebic\" or \"gic\"")
-
         # cv
         if (not isinstance(self.cv, int) or self.cv <= 0):
             raise ValueError("cv should be an positive integer.")
         if self.cv > n:
             raise ValueError("cv should be smaller than n.")
+
+        # Ic_type: aic, bic, gic, ebic
+        # cv_score: test_loss, roc_auc
+        if self.cv == 1:
+            if self.ic_type == "loss":
+                eval_type_int = 0
+            elif self.ic_type == "aic":
+                eval_type_int = 1
+            elif self.ic_type == "bic":
+                eval_type_int = 2
+            elif self.ic_type == "gic":
+                eval_type_int = 3
+            elif self.ic_type == "ebic":
+                eval_type_int = 4
+            elif self.ic_type == "hic":
+                eval_type_int = 5
+            else:
+                raise ValueError(
+                    "ic_type should be \"aic\", \"bic\", \"ebic\","
+                    " \"gic\" or \"hic\".")
+        else:
+            if self.cv_score == "test_loss":
+                eval_type_int = 0
+            elif self.cv_score == "roc_auc" and self.model_type == "Logistic":
+                eval_type_int = 1
+            elif (self.cv_score == "roc_auc_ovo" and
+                  self.model_type == "Multinomial"):
+                eval_type_int = 2
+            elif (self.cv_score == "roc_auc_ovr" and
+                  self.model_type == "Multinomial"):
+                eval_type_int = 3
+            else:
+                raise ValueError(
+                    "cv_score should be \"test_loss\", "
+                    "\"roc_auc\"(for logistic), "
+                    "\"roc_auc_ovo\"(for multinomial), or "
+                    "\"roc_auc_ovr\"(for multinomial).")
 
         # cv_fold_id
         if cv_fold_id is None:
@@ -330,56 +401,65 @@ class bess_base(BaseEstimator):
         else:
             cv_fold_id = np.array(cv_fold_id, dtype="int32")
             if cv_fold_id.ndim > 1:
-                raise ValueError("group should be an 1D array of integers.")
+                raise ValueError(
+                    "cv_fold_id should be an 1D array of integers.")
             if cv_fold_id.size != n:
                 raise ValueError(
-                    "The length of group should be equal to X.shape[0].")
+                    "The length of cv_fold_id should be equal to X.shape[0].")
             if len(set(cv_fold_id)) != self.cv:
                 raise ValueError(
                     "The number of different masks should be equal to `cv`.")
 
         # A_init
-        if A_init is None:
-            A_init = np.array([], dtype="int32")
+        if self.A_init is None:
+            A_init_list = np.array([], dtype="int32")
         else:
-            A_init = np.array(A_init, dtype="int32")
-            if A_init.ndim > 1:
+            A_init_list = np.array(self.A_init, dtype="int32")
+            if A_init_list.ndim > 1:
                 raise ValueError("The initial active set should be "
                                  "an 1D array of integers.")
-            if (A_init.min() < 0 or A_init.max() >= p):
-                raise ValueError("A_init contains wrong index.")
+            if (A_init_list.min() < 0 or A_init_list.max() >= p):
+                raise ValueError("A_init contains out-of-range index.")
 
         # Group:
-        if group is None:
+        if self.group is None:
             g_index = list(range(p))
         else:
-            group = np.array(group)
-            if group.ndim > 1:
+            g = np.array(self.group)
+            if g.ndim > 1:
                 raise ValueError("group should be an 1D array of integers.")
-            if group.size != p:
+            if g.size != p:
                 raise ValueError(
                     "The length of group should be equal to X.shape[1].")
+            group_set = list(set(g))
+            g.sort()
             g_index = []
-            group.sort()
-            group_set = list(set(group))
             j = 0
             for i in group_set:
-                while group[j] != i:
+                while g[j] != i:
                     j += 1
                 g_index.append(j)
 
-        # Weight:
-        if weight is None:
-            weight = np.ones(n)
+        # sample_weight:
+        if sample_weight is None:
+            sample_weight = np.ones(n)
         else:
-            weight = np.array(weight)
-            if weight.dtype not in ("int", "float"):
-                raise ValueError("weight should be numeric.")
-            if weight.ndim > 1:
-                raise ValueError("weight should be a 1-D array.")
-            if weight.size != n:
-                raise ValueError("X.shape[0] should be equal to weight.size")
-        
+            sample_weight = np.array(sample_weight, dtype="float")
+            if sample_weight.ndim > 1:
+                raise ValueError("sample_weight should be a 1-D array.")
+            if sample_weight.size != n:
+                raise ValueError(
+                    "X.shape[0] should be equal to sample_weight.size")
+
+            useful_index = list()
+            for i, w in enumerate(sample_weight):
+                if w > 0:
+                    useful_index.append(i)
+            if len(useful_index) < n:
+                X = X[useful_index, :]
+                y = y[useful_index, :] if len(y.shape) > 1 else y[useful_index]
+                sample_weight = sample_weight[useful_index]
+                n = len(useful_index)
 
         # Path parameters
         if path_type_int == 1:  # seq
@@ -388,12 +468,10 @@ class bess_base(BaseEstimator):
                     support_sizes = [0, 1]
                 else:
                     support_sizes = list(
-                        range(
-                            0,
-                            max(
-                                min(p,
-                                    int(n / (np.log(np.log(n)) * np.log(p)))),
-                                1)))
+                        range(0, max(min(
+                            p,
+                            int(n / (np.log(np.log(n)) * np.log(p)))
+                        ), 1)))
             else:
                 if isinstance(self.support_size,
                               (numbers.Real, numbers.Integral)):
@@ -486,7 +564,7 @@ class bess_base(BaseEstimator):
                 "important_search should be a non-negative number.")
 
         # Sparse X
-        if self.sparse_matrix:
+        if sparse_matrix:
             if not isinstance(X, (coo_matrix)):
                 # print("sparse matrix 1")
                 nonzero = 0
@@ -518,6 +596,15 @@ class bess_base(BaseEstimator):
         else:
             always_select_list = np.array(self.always_select, dtype="int32")
 
+        # beta range
+        if beta_low is None:
+            beta_low = -sys.float_info.max
+        if beta_high is None:
+            beta_high = sys.float_info.max
+        if beta_low > beta_high:
+            raise ValueError(
+                "Please make sure beta_low <= beta_high.")
+
         # unused
         n_lambda = 100
         early_stop = False
@@ -530,27 +617,25 @@ class bess_base(BaseEstimator):
             result = [np.zeros((p, M)), np.zeros(M), 0, 0, 0]
         else:
             result = pywrap_GLM(
-                X, y, weight, n, p, normalize, algorithm_type_int,
+                X, y, sample_weight, n, p, normalize, algorithm_type_int,
                 model_type_int,
                 self.max_iter, self.exchange_num, path_type_int,
-                self.is_warm_start, ic_type_int, self.ic_coef, self.cv,
+                self.is_warm_start, eval_type_int, self.ic_coef, self.cv,
                 g_index,
                 support_sizes, alphas, cv_fold_id, new_s_min, new_s_max,
                 new_lambda_min, new_lambda_max, n_lambda, self.screening_size,
                 always_select_list, self.primary_model_fit_max_iter,
                 self.primary_model_fit_epsilon, early_stop,
                 self.approximate_Newton, self.thread, self.covariance_update,
-                self.sparse_matrix, self.splicing_type, self.important_search,
-                A_init)
+                sparse_matrix, self.splicing_type, self.important_search,
+                A_init_list, self.fit_intercept, beta_low, beta_high)
 
-        # print("linear fit end")
-        # print(len(result))
-        # print(result)
         self.coef_ = result[0].squeeze()
         self.intercept_ = result[1].squeeze()
         self.train_loss_ = result[2]
-        self.test_loss_ = result[3]
-        self.ic_ = result[4]
+        # self.test_loss_ = result[3]
+        # self.ic_ = result[4]
+        self.eval_loss_ = result[3] if (self.cv > 1) else result[4]
 
         if self.model_type == "Cox":
             self.baseline_model.fit(np.dot(X, self.coef_), y, time)

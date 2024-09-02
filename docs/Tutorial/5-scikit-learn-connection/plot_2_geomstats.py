@@ -1,11 +1,11 @@
 """
 Work with geomstats
-======================
+===================
 """
 
 # %%
 # The package `geomstats` is used for computations and statistics on nonlinear manifolds, 
-#such as Hypersphere,Hyperbolic Space, Symmetric-Positive-Definite (SPD) Matrices Space and Skew-Symmetric Matrices Space. 
+# such as Hypersphere,Hyperbolic Space, Symmetric-Positive-Definite (SPD) Matrices Space and Skew-Symmetric Matrices Space. 
 # `abess` also works well with the package `geomstats`. 
 # Here is an example of using `abess` to do logistic regression of samples on Hypersphere, 
 # and we will compare the precision score, the recall score and the running time with `abess` and with `scikit-learn`.
@@ -27,9 +27,9 @@ gs.random.seed(0)
 
 ###############################################################################
 # An Example
-# ---------------------
+# ----------
 # Two sets of samples on Hypersphere in 3-dimensional Euclidean Space are created. 
-# The sample points in `data0` are distributed around $[-3/5, 0, 4/5]$, and the sample points in `data1` are distributed around $[3/5, 0, 4/5]$. 
+# The sample points in `data0` are distributed around :math:`[-3/5, 0, 4/5]`, and the sample points in `data1` are distributed around :math:`[3/5, 0, 4/5]`. 
 # The sample size of both is set to 100, and the precision of both is set to 5. 
 # The two sets of samples are shown in the figure below.
 
@@ -53,7 +53,7 @@ labels = np.concatenate((np.zeros(data0.shape[0]),np.ones(data1.shape[0])))
 data = np.concatenate((data0,data1))
 train_data, test_data, train_labels, test_labels = train_test_split(data, labels, test_size=0.33, random_state=0)
 
-mean = FrechetMean(metric=sphere.metric)
+mean = FrechetMean(sphere)
 mean.fit(train_data)
 mean_estimate = mean.estimate_
 
@@ -101,20 +101,20 @@ print('Used variables\' index:', np.nonzero(model.coef_ != 0)[0])
 print('accuracy:',sum((fitted_labels - test_labels + 1) % 2)/test_data.shape[0])
 
 # %%
-# The result shows that the only variables' index it used is $[0]$. 
+# The result shows that the only variables' index it used is :math:`[0]`. 
 # When constructing the samples, the means of the two sets are only different in the 0th direction. 
 # It shows that `abess` correctly identifies the most relevant variable for classification.
 
 ###############################################################################
 # Comparison
-# -------------
+# ----------
 # Here is the comparison of the precision score and the recall score with `abess` and `scikit-learn`, and 
 # the comparison of the running time with `abess` and `scikit-learn`. 
 # 
 # We loop 50 times. 
 # At each time, two sets of samples on Hypersphere in 10-dimensional Euclidean Space are created. 
-# The sample points in `data0` are distributed around $[1 / 3, 0, 2 / 3, 0, 2 / 3, 0, 0, 0, 0, 0]$, and 
-# the sample points in `data1` are distributed around $[0, 0, 2 / 3, 0, 2 / 3, 0, 0, 0, 0, 1 / 3]$. 
+# The sample points in `data0` are distributed around :math:`[1 / 3, 0, 2 / 3, 0, 2 / 3, 0, 0, 0, 0, 0]`, and 
+# the sample points in `data1` are distributed around :math:`[0, 0, 2 / 3, 0, 2 / 3, 0, 0, 0, 0, 1 / 3]`. 
 # The sample size of both is set to 200, and the precision of both is set to 5. 
 
 m = 50  # cycles
@@ -138,7 +138,7 @@ for i in range(m):
                                             precision=pre)
     data = np.concatenate((data0, data1))
     train_data, test_data, train_labels, test_labels = train_test_split(data, labels, test_size=0.33, random_state=0)
-    mean = FrechetMean(metric=sphere.metric)
+    mean = FrechetMean(sphere)
     mean.fit(train_data)
     mean_estimate = mean.estimate_
     log_train_data = sphere.metric.log(train_data, mean_estimate)
@@ -212,8 +212,4 @@ plt.show()
 # And the running time with `abess` is only slightly slower than that without `abess`.
 
 # %%
-# 
-# 
-# 
 # sphinx_gallery_thumbnail_path = 'Tutorial/figure/geomstats.png'
-# 
