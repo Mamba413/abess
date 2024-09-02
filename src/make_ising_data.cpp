@@ -1,9 +1,7 @@
 
 #ifdef R_BUILD
 // [[Rcpp::depends(RcppEigen)]]
-// [[Rcpp::interfaces(r,cpp)]]
 #include <Rcpp.h>
-// [[Rcpp::plugins(cpp11)]]
 #include <RcppEigen.h>
 using namespace Rcpp;
 #else
@@ -112,52 +110,3 @@ Eigen::MatrixXd Ising_Gibbs(Eigen::MatrixXd theta, int n_sample, int burn, int s
   }
   return data;
 }
-
-#ifndef R_BUILD
-
-void ising_sample_by_conf_wrap(long long n, double *theta, int theta_row, int theta_col, 
-                               int seed_train, int seed_valid,
-                               double *train_out, int train_out_len,
-                               double *valid_out, int valid_out_len){
-  int num_conf = pow(2, theta_col);                               
-  Eigen::MatrixXd theta_Mat(theta_row, theta_col);
-  Eigen::MatrixXd train_out_Mat(num_conf, theta_col + 1);
-  Eigen::MatrixXd valid_out_Mat(num_conf, theta_col + 1);
-
-  theta_Mat = Pointer2MatrixXd(theta, theta_row, theta_col);
-
-  // cout<<"cpp theta: "<<endl;///
-  // for (int i=0;i<theta_Mat.rows();i++){
-  //   for (int j=0;j<theta_Mat.cols();j++) 
-  //     cout<<theta_Mat(i,j)<<" ";cout<<endl;
-  // }
-
-  train_out_Mat = sample_by_conf(n, theta_Mat, seed_train);
-  // cout<<"cpp: "<<endl;///
-  // for (int i=0;i<10;i++){
-  //   for (int j=0;j<train_out_Mat.cols();j++) 
-  //     cout<<train_out_Mat(i,j)<<" ";cout<<endl;
-  // }
-  valid_out_Mat = sample_by_conf(n, theta_Mat, seed_valid);
-
-  MatrixXd2Pointer(train_out_Mat, train_out);
-  MatrixXd2Pointer(valid_out_Mat, valid_out);
-}
-
-void ising_gibbs_wrap(double *theta, int theta_row, int theta_col, 
-                      int n_sample, int burn, int skip,
-                      double *value, int value_len, bool using_seed, int set_seed,
-                      double *data_out, int data_out_len){
-  Eigen::MatrixXd theta_Mat(theta_row, theta_col);
-  Eigen::VectorXd value_Vec(value_len);
-  Eigen::MatrixXd data_out_Mat(2 * n_sample, theta_col);
-
-  theta_Mat = Pointer2MatrixXd(theta, theta_row, theta_col);
-  value_Vec = Pointer2VectorXd(value, value_len);
-
-  data_out_Mat = Ising_Gibbs(theta_Mat, 2 * n_sample, burn, skip, value_Vec, using_seed, set_seed);
-
-  MatrixXd2Pointer(data_out_Mat, data_out);
-}
-
-#endif // R_BUILD
