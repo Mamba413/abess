@@ -101,14 +101,16 @@ gen_rr_adjmat2 <- function(n_node,
     adj[ind_nonzero[i, 2], ind_nonzero[i, 1]] <- value
   }
   
-  value <- rep(alpha, n_node - 1)
-  if (type == "glass") {
-    value <- sample(c(-1, 1), size = (n_node - 1), replace = TRUE) * value
-  }
-  index <- find_path(1, c(1), adj, n_node)
-  alpha_adj_index <- cbind(index[-n_node], index[-1])
-  for (i in 1:(n_node - 1)) {
-    adj[alpha_adj_index[i, 1], alpha_adj_index[i, 2]] <- value[i]
+  if (alpha != beta) {
+    value <- rep(alpha, n_node - 1)
+    if (type == "glass") {
+      value <- sample(c(-1, 1), size = (n_node - 1), replace = TRUE) * value
+    }
+    index <- find_path(1, c(1), adj, n_node)
+    alpha_adj_index <- cbind(index[-n_node], index[-1])
+    for (i in 1:(n_node - 1)) {
+      adj[alpha_adj_index[i, 1], alpha_adj_index[i, 2]] <- value[i]
+    }
   }
   adj
 }
@@ -198,6 +200,15 @@ gen_5nn_cyc <- function(n_node, lattice_col, degree, beta, alpha, type = c("ferr
     adj[ind_nonzero[i, 1], ind_nonzero[i, 2]] <- value[i]
     adj[ind_nonzero[i, 2], ind_nonzero[i, 1]] <- value[i]
   }
+  adj
+}
+
+gen_ld_adjmat <- function(p, degree, alpha) {
+  adj <- matrix(0, p, p)
+  adj[1:(degree+1), 1:(degree+1)] <- 1
+  adj[lower.tri(adj, diag = TRUE)] <- 0
+  adj <- alpha * adj
+  adj <- t(adj) + adj
   adj
 }
 
@@ -352,6 +363,8 @@ sim_theta <- function(p, type = 1, graph_seed, beta, degree, alpha, lattice_col)
     theta <- gen_rr_adjmat2(p, degree, beta, alpha, type = "ferro")
   if (type == 17)
     theta <- gen_rr_adjmat2(p, degree, beta, alpha, type = "glass")
+  if (type == 18) 
+    theta <- gen_ld_adjmat(p, degree, alpha)
   
   set.seed(NULL)
   return(theta)
